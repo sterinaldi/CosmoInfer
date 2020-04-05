@@ -159,8 +159,10 @@ class DPGMMSkyPosterior(object):
         self.ranked_ra          = self.catalog[idx,0]
         self.ranked_dec         = self.catalog[idx,1]
         self.ranked_dl          = self.catalog[idx,2]
-        self.ranked_zs          = self.catalog[idx,3]
-        self.ranked_zp          = self.catalog[idx,4]
+        self.ranked_z           = self.catalog[idx,3]
+        self.ranked_B           = self.catalog[idx,4]
+        self.ranked_dB          = self.catalog[idx,5]
+        self.ranked_Babs        = self.catalog[idx,6]
 
         order                   = self.ranked_probability.argsort()[::-1]
 
@@ -168,8 +170,9 @@ class DPGMMSkyPosterior(object):
         self.ranked_ra          = self.ranked_ra[order]
         self.ranked_dec         = self.ranked_dec[order]
         self.ranked_dl          = self.ranked_dl[order]
-        self.ranked_zs          = self.ranked_zs[order]
-        self.ranked_zp          = self.ranked_zp[order]
+        self.ranked_z           = self.ranked_z[order]
+        self.ranked_B           = self.ranked_B[order]
+        self.ranked_dB          = self.ranked_Babs[order]
 
     def evaluate_volume_map(self):
         N = self.bins[0]*self.bins[1]*self.bins[2]
@@ -360,7 +363,7 @@ def FindLevelForHeight(inLogArr, logvalue):
 #---------
 
 def readGC(file,dpgmm,standard_cosmology=True):
-    ra, dec, z, dl = [], [], [], []
+    ra, dec, z, dl, B, dB, B_abs = [], [], [], [], [], [], []
 
     '''
     Glade 2.3
@@ -380,8 +383,6 @@ def readGC(file,dpgmm,standard_cosmology=True):
         # Flag2 = 0: no distance/redshift measurement.
         print(gal)
         if np.float(gal['z']) > 0.0:
-
-            print(gal['z'])
             if not(standard_cosmology):
                 h       = np.random.uniform(0.1,2.0)
                 om      = np.random.uniform(0.0,1.0)
@@ -391,13 +392,16 @@ def readGC(file,dpgmm,standard_cosmology=True):
             ra.append(np.float(gal['RA']))
             dec.append(np.float(gal['DEC']))
             z.append(np.float(gal['z']))
-            print(z[-1])
+            B.append(np.float(gal['B']))
+            dB.append(np.float(gal['B_err']))
+            B_abs.append(np.float(gal['B_abs']))
+
 
             if not(np.isnan(z[-1])) and (zmin < z[-1] < zmax):
                 dl.append(lal.LuminosityDistance(omega,z[-1]))
             else:
                 dl.append(-1)
-    return np.column_stack((np.radians(np.array(ra)),np.radians(np.array(dec)),np.array(dl),np.array(z), np.array(z)))
+    return np.column_stack((np.radians(np.array(ra)),np.radians(np.array(dec)),np.array(dl),np.array(z), np.array(B), np.array(dB), np.array(B_abs))
 
 def find_redshift_limits(h, om, dmin, dmax):
 
@@ -517,11 +521,13 @@ def main():
                    np.array([np.degrees(dpgmm.ranked_ra[:options.ranks]),
                              np.degrees(dpgmm.ranked_dec[:options.ranks]),
                              dpgmm.ranked_dl[:options.ranks],
-                             dpgmm.ranked_zs[:options.ranks],
-                             dpgmm.ranked_zp[:options.ranks],
+                             dpgmm.ranked_z[:options.ranks],
+                             dpgmm.ranked_B[:options.ranks],
+                             dpgmm.ranked_dB[:options.ranks],
+                             dpgmm.ranked_Babs[:options.ranks],
                              dpgmm.ranked_probability[:options.ranks]]).T,
                    fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
-                   header='ra[deg]\tdec[deg]\tDL[Mpc]\tz_spec\tz_phot\tlogposterior')
+                   header='ra[deg]\tdec[deg]\tDL[Mpc]\tz\tB\tB_err\tB_abs\tlogposterior')
 
     dpgmm.evaluate_volume_map()
     volumes, searched_volume        = dpgmm.ConfidenceVolume(CLs)

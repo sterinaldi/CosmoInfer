@@ -456,7 +456,7 @@ def main():
 
     print(options)
     np.random.seed(1)
-    CLs                 = [0.1,0.2,0.25,0.3,0.4,0.5,0.6,0.68,0.7,0.75,0.8,0.9] # add options?
+    CLs                 = [0.05,0.1,0.2,0.25,0.3,0.4,0.5,0.6,0.68,0.7,0.75,0.8,0.9,0.95] # add options?
     input_file          = options.input
     injFile             = options.injfile
     eventID             = options.event_id

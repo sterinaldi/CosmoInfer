@@ -3,9 +3,16 @@ import sys
 import os
 from galaxies import *
 import lal
-from volume_reconstruction import VolumeReconstruction
+from volume_reconstruction.dpgmm.dpgmm import *
+from volume_reconstruction.utils.utils import *
+import dill as pickle
+from scipy.special import logsumexp
 
-
+def logPosterior(args):
+    density,celestial_coordinates = args
+    cartesian_vect = celestial_to_cartesian(celestial_coordinates)
+    logPs = [np.log(density[0][ind])+prob.logProb(cartesian_vect) for ind,prob in enumerate(density[1])]
+    return logsumexp(logPs)+np.log(Jacobian(cartesian_vect))
 
 def gaussian(x,x0,sigma):
     return np.exp(-(x-x0)**2/(2*sigma**2))/(sigma*np.sqrt(2*np.pi))
@@ -27,41 +34,6 @@ def RedshiftCalculation(LD, omega, zinit=0.3, limit = 0.001):
     znew = zinit - (LD_test - LD)/dLumDist(zinit,omega)
     return RedshiftCalculation(LD, omega, zinit = znew)
 
-def get_samples(file, names = ['ra','dec','luminosity_distance']):
-    filename, ext = splitext(file)
-    samples = {}
-
-    if ext == '.json':
-        with open(file, 'r') as f:
-            data = json.load(f)
-
-        post = np.array(data['posterior_samples']['SEOBNRv4pHM']['samples'])
-        keys = data['posterior_samples']['SEOBNRv4pHM']['parameter_names']
-
-        for name in names:
-            index  = keys.index(name)
-            samples[name] = post[:,index]
-
-        return samples
-
-    if ext == '.hdf5':
-        f = h5py.File(file, 'r')
-        dati = f[list(f.keys())[2]] # 2 low spin posteriors, 0 high spin posteriors
-        h5names = ['right_ascension','declination','luminosity_distance_Mpc']
-
-        for name, nameh5 in zip(names, h5names):
-            samples[name] = dati[nameh5]
-
-        return samples
-
-    if ext == '.dat':
-        data = np.genfromtxt(file, names = True)
-        dat_names = ['ra','dec','distance']
-
-        for name, name_dat in zip(names, dat_names):
-            samples[name] = data[dat_names]
-
-        return samples
 
 
 class Event_test(object):
@@ -128,6 +100,45 @@ class Event_test(object):
         app = gaussian(DEC, self.DEC_true, self.dDEC)
         return app
 
+class Event_CBC(object):
+
+    def __init__(self,
+                 ID,
+                 catalog_file,
+                 density,
+                 levels_file,
+                 rel_z_error  = 0.1,
+                 n_tot        = None,
+                 gal_density  = None):
+
+        if catalog_file is None:
+            raise SystemExit('No catalog provided')
+
+        self.ID                     = ID
+        self.LD                     = LD_true
+        self.dLD                    = dLD
+        self.potential_galaxy_hosts = read_galaxy_catalog({'RA':[0., 360.], 'DEC':[-90., 90.], 'z':[0., 4.]}, rel_z_error = rel_z_error, catalog_file = catalog_file, n_tot = n_tot)
+        self.n_hosts                = len(self.potential_galaxy_hosts)
+        self.density_model          = pickle.load(open(density, 'rb'))
+
+        self.cl      = np.genfromtxt(levels_file, names = ['CL','vol','area','LD'])
+        self.vol_90  = cl['vol'][np.where(cl['CL']==0.95)[0][0]]-cl['vol'][np.where(cl['CL']==0.05)[0][0]]
+        self.area_90 = cl['area'][np.where(cl['CL']==0.95)[0][0]]-cl['area'][np.where(cl['CL']==0.05)[0][0]]
+        self.LDmin   = cl['LD'][np.where(cl['CL']==0.05)[0][0]]
+        self.LDmax   = cl['LD'][np.where(cl['CL']==0.95)[0][0]]
+
+        if n_tot is not None:
+            self.n_tot = n_tot
+        elif gal_density is not None:
+            self.n_tot = gal_density*self.vol_90
+        elif:
+            self.n_tot = self.n_hosts
+
+        def logP(self, galaxy):
+            '''
+            galaxy must be a np.ndarray with (LD, dec, ra)
+            '''
+            return logPosterior(self.density_model, galaxy)
 
 def read_TEST_event(errors = None, omega = None, input_folder = None, catalog_data = None, N_ev_max = None, rel_z_error = 0.1, n_tot = None):
     '''
@@ -153,21 +164,19 @@ def read_TEST_event(errors = None, omega = None, input_folder = None, catalog_da
         event_file.close()
     return np.array(events)
 
-def read_CB_event():
-     all_files    = os.listdir(input_folder)
-     events_list  = [f for f in all_files if 'event' in f]
-     catalog_list = [f for f in all_files if 'catalog' in f]
-     events_list.sort()
-     catalog_list.sort()
-     print(catalog_list)
+def read_CBC_event():
+     all_files     = os.listdir(input_folder)
+     event_folders = []
+     for file in all_files:
+        if not '.' in dir and 'event' in dir:
+            event_folders.append(dir)
      events = []
 
-    for ev, cat in zip(events_list, catalog_list):
-        catalog_file        = input_folder+"/"+cat
-        event_file          = open(input_folder+'/'+ev,"r")
-        data                = np.genfromtxt(event_file, names = True)
-        events.append(Event_test(N_ev_max, data['dLD'],np.deg2rad(data['dRA']), np.deg2rad(data['dDEC']), data['LD'], np.deg2rad(data['RA']), np.deg2rad(data['DEC']), omega, rel_z_error, catalog_file, catalog_data, n_tot))
-        event_file.close()
+     for evfold in event_folders:
+         catalog_file = evfold+'/galaxy_0.9.txt'
+         event_file   = evfold+'/dpgmm_density.p'
+         levels       = evfold+'/confidence_levels.txt'
+         events.append()
     return np.array(events)
 
 
@@ -177,7 +186,7 @@ def read_CB_event():
 def read_event(event_class,*args,**kwargs):
 
     if event_class == "TEST": return read_TEST_event(*args, **kwargs)
-    if event_class == "CB": return read_CB_event(*args, **kwargs)
+    if event_class == "CBC": return read_CB_event(*args, **kwargs)
     else:
         print("I do not know the class %s, exiting\n"%event_class)
         exit(-1)
