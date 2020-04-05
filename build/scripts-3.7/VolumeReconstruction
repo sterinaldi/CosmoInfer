@@ -1,0 +1,4 @@
+#!/Users/Stefano/anaconda3/bin/python
+
+from volume_reconstruction import VolumeReconstruction
+VolumeReconstruction.main()
