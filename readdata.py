@@ -115,30 +115,34 @@ class Event_CBC(object):
             raise SystemExit('No catalog provided')
 
         self.ID                     = ID
-        self.LD                     = LD_true
-        self.dLD                    = dLD
         self.potential_galaxy_hosts = read_galaxy_catalog({'RA':[0., 360.], 'DEC':[-90., 90.], 'z':[0., 4.]}, rel_z_error = rel_z_error, catalog_file = catalog_file, n_tot = n_tot)
         self.n_hosts                = len(self.potential_galaxy_hosts)
         self.density_model          = pickle.load(open(density, 'rb'))
 
-        self.cl      = np.genfromtxt(levels_file, names = ['CL','vol','area','LD'])
+        self.cl      = np.genfromtxt(levels_file, names = ['CL','vol','area','LD', 'ramin', 'ramax', 'decmin', 'decmax'])
         self.vol_90  = cl['vol'][np.where(cl['CL']==0.95)[0][0]]-cl['vol'][np.where(cl['CL']==0.05)[0][0]]
         self.area_90 = cl['area'][np.where(cl['CL']==0.95)[0][0]]-cl['area'][np.where(cl['CL']==0.05)[0][0]]
         self.LDmin   = cl['LD'][np.where(cl['CL']==0.05)[0][0]]
         self.LDmax   = cl['LD'][np.where(cl['CL']==0.95)[0][0]]
+        self.LDmean  = cl['LD'][np.where(cl['CL']==0.5)[0][0]]
+        self.ramin   = cl['ramin'][np.where(cl['CL']==0.9)[0][0]]
+        self.ramax   = cl['ramax'][np.where(cl['CL']==0.9)[0][0]]
+        self.decmin  = cl['decmin'][np.where(cl['CL']==0.9)[0][0]]
+        self.decmax  = cl['decmax'][np.where(cl['CL']==0.9)[0][0]]
 
         if n_tot is not None:
             self.n_tot = n_tot
         elif gal_density is not None:
             self.n_tot = gal_density*self.vol_90
+            self.potential_galaxy_hosts = catalog_weight(self.potential_galaxy_hosts, weight = 'uniform', ngal = self.n_tot)
         elif:
             self.n_tot = self.n_hosts
 
-        def logP(self, galaxy):
-            '''
-            galaxy must be a np.ndarray with (LD, dec, ra)
-            '''
-            return logPosterior(self.density_model, galaxy)
+    def logP(self, galaxy):
+        '''
+        galaxy must be a np.ndarray with (LD, dec, ra)
+        '''
+        return logPosterior(self.density_model, galaxy)
 
 def read_TEST_event(errors = None, omega = None, input_folder = None, catalog_data = None, N_ev_max = None, rel_z_error = 0.1, n_tot = None):
     '''
