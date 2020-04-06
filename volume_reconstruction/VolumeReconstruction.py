@@ -163,6 +163,7 @@ class DPGMMSkyPosterior(object):
         self.ranked_B           = self.catalog[idx,4]
         self.ranked_dB          = self.catalog[idx,5]
         self.ranked_Babs        = self.catalog[idx,6]
+        self.peculiarmotion     = self.catalog[idx,7]
 
         order                   = self.ranked_probability.argsort()[::-1]
 
@@ -173,6 +174,7 @@ class DPGMMSkyPosterior(object):
         self.ranked_z           = self.ranked_z[order]
         self.ranked_B           = self.ranked_B[order]
         self.ranked_dB          = self.ranked_Babs[order]
+        self.peculiarmotion     = self.peculiarmotion[order]
 
     def evaluate_volume_map(self):
         N = self.bins[0]*self.bins[1]*self.bins[2]
@@ -387,7 +389,7 @@ def FindLevelForHeight(inLogArr, logvalue):
 #---------
 
 def readGC(file,dpgmm,standard_cosmology=True):
-    ra, dec, z, dl, B, dB, B_abs = [], [], [], [], [], [], []
+    ra, dec, z, dl, B, dB, B_abs, pecmot = [], [], [], [], [], [], [], []
 
     '''
     Glade 2.3
@@ -419,13 +421,14 @@ def readGC(file,dpgmm,standard_cosmology=True):
             B.append(np.float(gal['B']))
             dB.append(np.float(gal['B_err']))
             B_abs.append(np.float(gal['B_abs']))
+            pecmot.append(np.float(gal['flag3']))
 
 
             if not(np.isnan(z[-1])) and (zmin < z[-1] < zmax):
                 dl.append(lal.LuminosityDistance(omega,z[-1]))
             else:
                 dl.append(-1)
-    return np.column_stack((np.radians(np.array(ra)),np.radians(np.array(dec)),np.array(dl),np.array(z), np.array(B), np.array(dB), np.array(B_abs)))
+    return np.column_stack((np.radians(np.array(ra)),np.radians(np.array(dec)),np.array(dl),np.array(z), np.array(B), np.array(dB), np.array(B_abs), np.array(pecmot)))
 
 def find_redshift_limits(h, om, dmin, dmax):
 
@@ -549,9 +552,10 @@ def main():
                              dpgmm.ranked_B[:options.ranks],
                              dpgmm.ranked_dB[:options.ranks],
                              dpgmm.ranked_Babs[:options.ranks],
+                             dpgmm.peculiarmotion[:options.ranks],
                              dpgmm.ranked_probability[:options.ranks]]).T,
-                   fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
-                   header='ra[deg]\tdec[deg]\tDL[Mpc]\tz\tB\tB_err\tB_abs\tlogposterior')
+                   fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
+                   header='ra[deg]\tdec[deg]\tDL[Mpc]\tz\tB\tB_err\tB_abs\tpec.mot.corr.\tlogposterior')
 
     dpgmm.evaluate_volume_map()
     volumes, searched_volume          = dpgmm.ConfidenceVolume(CLs)
