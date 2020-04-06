@@ -425,7 +425,7 @@ def readGC(file,dpgmm,standard_cosmology=True):
                 dl.append(lal.LuminosityDistance(omega,z[-1]))
             else:
                 dl.append(-1)
-    return np.column_stack(np.radians(np.array(ra)),np.radians(np.array(dec)),np.array(dl),np.array(z), np.array(B), np.array(dB), np.array(B_abs))
+    return np.column_stack((np.radians(np.array(ra)),np.radians(np.array(dec)),np.array(dl),np.array(z), np.array(B), np.array(dB), np.array(B_abs)))
 
 def find_redshift_limits(h, om, dmin, dmax):
 
