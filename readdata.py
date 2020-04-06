@@ -109,7 +109,7 @@ class Event_CBC(object):
                  levels_file,
                  rel_z_error  = 0.1,
                  n_tot        = None,
-                 gal_density  = None):
+                 gal_density  = 0.6675): # galaxies/Mpc^3 (from Conselice et al., 2016)
 
         if catalog_file is None:
             raise SystemExit('No catalog provided')
