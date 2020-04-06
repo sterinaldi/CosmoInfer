@@ -266,6 +266,30 @@ class DPGMMSkyPosterior(object):
         del self.log_skymap_cum
         return self.area_confidence,None
 
+    def ConfidenceCoordinates(self, adLevels):
+        # create a normalized cumulative distribution
+        self.log_skymap_sorted  = np.sort(self.log_skymap.flatten())[::-1]
+        self.log_skymap_cum     = fast_log_cumulative(self.log_skymap_sorted)
+        # find the indeces  corresponding to the given CLs
+        adLevels                = np.ravel([adLevels])
+        args                    = [(self.log_skymap_sorted,self.log_skymap_cum,level) for level in adLevels]
+        adHeights               = self.pool.map(FindHeights,args)
+        ramin                   = []
+        ramax                   = []
+        decmin                  = []
+        decmax                  = []
+
+        for height in adHeights:
+            (index_dec,index_ra,) = np.where(self.log_skymap>=height)
+            ra     = self.grid[2][index_ra]
+            dec    = self.grid[1][index_dec]
+            ramin.append(ra.min())
+            ramax.append(ra.max())
+            decmin.append(dec.min())
+            decmax.append(dec.max())
+
+        return ramin, ramax, decmin, decmax
+
     def ConfidenceDistance(self, adLevels):
         cumulative_distribution     = np.cumsum(self.distance_map*self.dD)
         distances                   = []
@@ -530,11 +554,12 @@ def main():
                    header='ra[deg]\tdec[deg]\tDL[Mpc]\tz\tB\tB_err\tB_abs\tlogposterior')
 
     dpgmm.evaluate_volume_map()
-    volumes, searched_volume        = dpgmm.ConfidenceVolume(CLs)
+    volumes, searched_volume          = dpgmm.ConfidenceVolume(CLs)
     dpgmm.evaluate_sky_map()
-    areas, searched_area            = dpgmm.ConfidenceArea(CLs)
+    areas, searched_area              = dpgmm.ConfidenceArea(CLs)
+    ramin, ramax, decmin, decmax      = dpgmm.ConfidenceCoordinates(CLs)
     dpgmm.evaluate_distance_map()
-    distances, searched_distance    = dpgmm.ConfidenceDistance(CLs)
+    distances, searched_distance      = dpgmm.ConfidenceDistance(CLs)
 
     if dpgmm.catalog is not None:
         number_of_galaxies = np.zeros(len(CLs),dtype=np.int)
@@ -562,7 +587,7 @@ def main():
         plt.xlabel(r"$\mathrm{Distance/Mpc}$")
         plt.ylabel(r"$\mathrm{probability}$ $\mathrm{density}$")
         plt.savefig(os.path.join(options.output,'distance_posterior.pdf'),bbox_inches='tight')
-    np.savetxt(os.path.join(options.output,'confidence_levels.txt'), np.array([CLs, volumes, areas, distances]).T, fmt='%.2f\t%f\t%f\t%f')
+    np.savetxt(os.path.join(options.output,'confidence_levels.txt'), np.array([CLs, volumes, areas, distances, ramin, ramax, decmin, decmax]).T, fmt='%.2f\t%f\t%f\t%f')
     if dpgmm.injection is not None: np.savetxt(os.path.join(options.output,'searched_quantities.txt'), np.array([searched_volume,searched_area,searched_distance]), fmt='%s\t%s')
 
     # dist_inj,ra_inj,dec_inj,tc
