@@ -1,4 +1,4 @@
-from libc.math cimport INFINITY
+from libc.math cimport INFINITY, isnan
 cdef class Galaxy:
     """
     Galaxy class:
@@ -20,10 +20,14 @@ cdef class Galaxy:
         self.ID             = ID
         self.RA             = right_ascension
         self.DEC            = declination
-        self.abs_magnitude  = abs_magnitude
-        self.app_magnitude  = app_magnitude
-        self.dapp_magnitude = dapp_magnitude
         self.z              = redshift
         self.dz             = redshift*rel_z_error
         self.weight         = weight
         self.is_detected    = is_detected # Boolean value
+
+        if isnan(app_magnitude):
+          app_magnitude = INFINITY
+        else:
+          self.abs_magnitude  = abs_magnitude
+          self.app_magnitude  = app_magnitude
+          self.dapp_magnitude = dapp_magnitude

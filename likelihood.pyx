@@ -160,7 +160,10 @@ cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameter
     cdef double alpha, Mstar, Mth
 
     if gal.is_detected:
-        mag_int = myERF(m_th) # Integrale distribuzione in magnitudine (Analitico, vedi pdf.)
+        if np.isfinite(gal.app_magnitude):
+            mag_int = myERF((m_th-gal.app_magnitude)/(gal.dapp_magnitude*sqrt(2.))) # Integrale distribuzione in magnitudine (Analitico, vedi pdf.)
+        else:
+            mag_int = 1.
         for i in range(n):
             LD_i = omega.LuminosityDistance(z_view[i])
             I += np.exp(logpost(LD_i,gal.DEC,gal.RA))*gaussian(z_view[i], gal.z, gal.dz)
@@ -207,12 +210,10 @@ cdef double ComputeLogLhNoPost(Galaxy gal, CosmologicalParameters omega, double 
         raise SystemExit('No M or m threshold provided.')
 
     if gal.is_detected:
-        # if absM(gal.z, gal.app_magnitude, omega) > absM(gal.z, m_th, omega):
-        #     print('invalid cosmology')
-        #     return -INFINITY
-        # else:
-        return log(myERF(m_th))
 
+        # return log(myERF(m_th)) # this (or better, the integral of exp(-(m-mth)^2/2sigma_m^2)
+        # must be considered while dealing with non-trivial magnitude cut.
+        return log(myERF((m_th-gal.app_magnitude)/(gal.dapp_magnitude*sqrt(2.))))
     else:
         Schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, h = omega.h) # Modo semplice per tirare fuori i parametri di Schechter
         CoVol = (omega.ComovingVolume(zmax)-omega.ComovingVolume(zmin))
