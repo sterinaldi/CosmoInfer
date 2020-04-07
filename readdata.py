@@ -132,7 +132,7 @@ class Event_CBC(object):
         if n_tot is not None:
             self.n_tot = n_tot
         elif gal_density is not None:
-            self.n_tot = gal_density*self.vol_90
+            self.n_tot = int(gal_density*self.vol_90)
             print('Total number of galaxies in the considered volume ({0} Mpc^3): {1}'.format(self.vol_90, self.n_tot))
             self.potential_galaxy_hosts = catalog_weight(self.potential_galaxy_hosts, weight = 'uniform', ngal = self.n_tot)
         else:

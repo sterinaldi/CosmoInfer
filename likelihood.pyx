@@ -13,6 +13,8 @@ from scipy.integrate import quad
 from galaxy cimport Galaxy
 from cosmology cimport CosmologicalParameters
 import itertools as it
+import sys
+
 
 cdef inline double log_add(double x, double y): return x+log(1.0+exp(y-x)) if x >= y else y+log(1.0+exp(x-y))
 cdef inline double linear_density(double x, double a, double b): return a+log(x)*b
@@ -90,8 +92,11 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
 
     if np.isfinite(dark_term):
         for i in range(M):
+            print(i)
+            sys.stdout.flush()
             logL = log_add(dark_term, logL)
-
+    print(logL)
+    sys.stdout.flush()
     return logL
 
 cdef LumDist(z, omega):
@@ -136,7 +141,7 @@ cdef double Integrand_dark(double z, CosmologicalParameters omega, double alpha,
 
 cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameters omega, double zmin, double zmax, double ramin, double ramax, double decmin, double decmax, double m_th = 18, double M_max = 0, double M_min = -27):
 
-    cdef unsigned int i, n = 100
+    cdef unsigned int i, n = 1000
     cdef double mag_int
     cdef double LD_i
 
