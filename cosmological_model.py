@@ -203,7 +203,6 @@ if __name__=='__main__':
                            maxmcmc      = opts.maxmcmc,
                            output       = output,
                            nhamiltonian = 0)
-        exit()
         work.run()
         print('log Evidence {0}'.format(work.NS.logZ))
         x = work.posterior_samples.ravel()

@@ -136,7 +136,7 @@ cdef double Integrand_dark(double z, CosmologicalParameters omega, double alpha,
 
 cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameters omega, double zmin, double zmax, double ramin, double ramax, double decmin, double decmax, double m_th = 18, double M_max = 0, double M_min = -27):
 
-    cdef unsigned int i, n = 1000
+    cdef unsigned int i, n = 100
     cdef double mag_int
     cdef double LD_i
 
