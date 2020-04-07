@@ -151,7 +151,7 @@ class DPGMMSkyPosterior(object):
 
         sys.stderr.write("Ranking the galaxies: computing log posterior for %d galaxies\n"%(self.catalog.shape[0]))
         jobs        = ((self.density,np.array((d,dec,ra))) for d, dec, ra in zip(self.catalog[:,2],self.catalog[:,1],self.catalog[:,0]))
-        results     = self.pool.imap(logPosterior, jobs, chunksize = np.int(self.catalog.shape[0]/ (self.nthreads * 16)))
+        results     = self.pool.imap(logPosterior, jobs, chunksize = 1) #np.int(self.catalog.shape[0]/ (self.nthreads * 16)))
         logProbs    = np.array([r for r in results])
 
         idx         = ~np.isnan(logProbs)
@@ -173,7 +173,8 @@ class DPGMMSkyPosterior(object):
         self.ranked_dl          = self.ranked_dl[order]
         self.ranked_z           = self.ranked_z[order]
         self.ranked_B           = self.ranked_B[order]
-        self.ranked_dB          = self.ranked_Babs[order]
+        self.ranked_dB          = self.ranked_dB[order]
+        self.ranked_Babs        = self.ranked_Babs[order]
         self.peculiarmotion     = self.peculiarmotion[order]
 
     def evaluate_volume_map(self):
@@ -419,7 +420,10 @@ def readGC(file,dpgmm,standard_cosmology=True):
             dec.append(np.float(gal['DEC']))
             z.append(np.float(gal['z']))
             B.append(np.float(gal['B']))
-            dB.append(np.float(gal['B_err']))
+            if np.isfinite(gal['B_err']):
+                dB.append(np.float(gal['B_err']))
+            else:
+                dB.append(0.5)
             B_abs.append(np.float(gal['B_abs']))
             pecmot.append(np.float(gal['flag3']))
 
