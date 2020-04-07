@@ -107,7 +107,6 @@ class Event_CBC(object):
                  catalog_file,
                  density,
                  levels_file,
-                 rel_z_error  = 0.1,
                  n_tot        = None,
                  gal_density  = 0.6675): # galaxies/Mpc^3 (from Conselice et al., 2016)
 
@@ -120,29 +119,30 @@ class Event_CBC(object):
         self.density_model          = pickle.load(open(density, 'rb'))
 
         self.cl      = np.genfromtxt(levels_file, names = ['CL','vol','area','LD', 'ramin', 'ramax', 'decmin', 'decmax'])
-        self.vol_90  = cl['vol'][np.where(cl['CL']==0.95)[0][0]]-cl['vol'][np.where(cl['CL']==0.05)[0][0]]
-        self.area_90 = cl['area'][np.where(cl['CL']==0.95)[0][0]]-cl['area'][np.where(cl['CL']==0.05)[0][0]]
-        self.LDmin   = cl['LD'][np.where(cl['CL']==0.05)[0][0]]
-        self.LDmax   = cl['LD'][np.where(cl['CL']==0.95)[0][0]]
-        self.LDmean  = cl['LD'][np.where(cl['CL']==0.5)[0][0]]
-        self.ramin   = cl['ramin'][np.where(cl['CL']==0.9)[0][0]]
-        self.ramax   = cl['ramax'][np.where(cl['CL']==0.9)[0][0]]
-        self.decmin  = cl['decmin'][np.where(cl['CL']==0.9)[0][0]]
-        self.decmax  = cl['decmax'][np.where(cl['CL']==0.9)[0][0]]
+        self.vol_90  = self.cl['vol'][np.where(self.cl['CL']==0.95)[0][0]]-self.cl['vol'][np.where(self.cl['CL']==0.05)[0][0]]
+        self.area_90 = self.cl['area'][np.where(self.cl['CL']==0.95)[0][0]]-self.cl['area'][np.where(self.cl['CL']==0.05)[0][0]]
+        self.LDmin   = self.cl['LD'][np.where(self.cl['CL']==0.05)[0][0]]
+        self.LDmax   = self.cl['LD'][np.where(self.cl['CL']==0.95)[0][0]]
+        self.LDmean  = self.cl['LD'][np.where(self.cl['CL']==0.5)[0][0]]
+        self.ramin   = self.cl['ramin'][np.where(self.cl['CL']==0.9)[0][0]]
+        self.ramax   = self.cl['ramax'][np.where(self.cl['CL']==0.9)[0][0]]
+        self.decmin  = self.cl['decmin'][np.where(self.cl['CL']==0.9)[0][0]]
+        self.decmax  = self.cl['decmax'][np.where(self.cl['CL']==0.9)[0][0]]
 
         if n_tot is not None:
             self.n_tot = n_tot
         elif gal_density is not None:
             self.n_tot = gal_density*self.vol_90
+            print('Total number of galaxies in the considered volume ({0} Mpc^3): {1}'.format(self.vol_90, self.n_tot))
             self.potential_galaxy_hosts = catalog_weight(self.potential_galaxy_hosts, weight = 'uniform', ngal = self.n_tot)
-        elif:
+        else:
             self.n_tot = self.n_hosts
 
     def logP(self, galaxy):
         '''
-        galaxy must be a np.ndarray with (LD, dec, ra)
+        galaxy must be a list with [LD, dec, ra]
         '''
-        return logPosterior(self.density_model, galaxy)
+        return logPosterior((self.density_model, np.array(galaxy)))
 
 def read_TEST_event(errors = None, omega = None, input_folder = None, catalog_data = None, N_ev_max = None, rel_z_error = 0.1, n_tot = None):
     '''
@@ -168,19 +168,21 @@ def read_TEST_event(errors = None, omega = None, input_folder = None, catalog_da
         event_file.close()
     return np.array(events)
 
-def read_CBC_event():
-     all_files     = os.listdir(input_folder)
-     event_folders = []
-     for file in all_files:
-        if not '.' in dir and 'event' in dir:
-            event_folders.append(dir)
-     events = []
-
-     for evfold in event_folders:
-         catalog_file = evfold+'/galaxy_0.9.txt'
-         event_file   = evfold+'/dpgmm_density.p'
-         levels       = evfold+'/confidence_levels.txt'
-         events.append()
+def read_CBC_event(input_folder, n_tot = None, gal_density = 0.6675):
+    all_files     = os.listdir(input_folder)
+    print(all_files)
+    event_folders = []
+    for file in all_files:
+        if not '.' in file and 'event' in file:
+            event_folders.append(file)
+    events = []
+    ID = 0.
+    for evfold in event_folders:
+        ID +=1
+        catalog_file = input_folder+evfold+'/galaxy_0.9.txt'
+        event_file   = input_folder+evfold+'/dpgmm_density.p'
+        levels_file  = input_folder+evfold+'/confidence_levels.txt'
+        events.append(Event_CBC(ID, catalog_file, event_file, levels_file))
     return np.array(events)
 
 
@@ -190,7 +192,7 @@ def read_CBC_event():
 def read_event(event_class,*args,**kwargs):
 
     if event_class == "TEST": return read_TEST_event(*args, **kwargs)
-    if event_class == "CBC": return read_CB_event(*args, **kwargs)
+    if event_class == "CBC": return read_CBC_event(*args, **kwargs)
     else:
         print("I do not know the class %s, exiting\n"%event_class)
         exit(-1)

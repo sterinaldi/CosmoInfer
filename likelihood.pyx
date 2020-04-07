@@ -68,11 +68,11 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
         # Voglio calcolare, per ogni galassia, le due
         # quantità rilevanti descritte in CosmoInfer.
         p_no_post_view[i]   = ComputeLogLhNoPost(hosts[i], omega, zmin, zmax)
-        p_with_post_view[i] = ComputeLogLhWithPost(hosts[i], event, omega, zmin, zmax)
+        p_with_post_view[i] = ComputeLogLhWithPost(hosts[i], event, omega, zmin, zmax, ramin, ramax, decmin, decmax)
 
     # Calcolo le likelihood anche per una singola dark galaxy
     p_no_post_dark   = ComputeLogLhNoPost(mockgalaxy, omega, zmin, zmax)
-    p_with_post_dark = ComputeLogLhWithPost(mockgalaxy, event, omega, zmin, zmax)
+    p_with_post_dark = ComputeLogLhWithPost(mockgalaxy, event, omega, zmin, zmax, ramin, ramax, decmin, decmax)
     # Calcolo i termini che andranno sommati tra loro (logaritmi)
     cdef np.ndarray[double, ndim=1, mode="c"] addends = np.zeros(N, dtype=np.float64)
     cdef double[::1] addends_view = addends
@@ -134,7 +134,7 @@ cdef double Integrand_dark(double z, CosmologicalParameters omega, double alpha,
 @cython.nonecheck(False)
 @cython.cdivision(True)
 
-cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameters omega, double zmin, double zmax, double m_th = 18, double M_max = 0, double M_min = -27):
+cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameters omega, double zmin, double zmax, double ramin, double ramax, double decmin, double decmax, double m_th = 18, double M_max = 0, double M_min = -27):
 
     cdef unsigned int i, n = 1000
     cdef double mag_int
@@ -166,7 +166,7 @@ cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameter
             mag_int = 1.
         for i in range(n):
             LD_i = omega.LuminosityDistance(z_view[i])
-            I += np.exp(logpost(LD_i,gal.DEC,gal.RA))*gaussian(z_view[i], gal.z, gal.dz)
+            I += np.exp(logpost([LD_i,gal.DEC,gal.RA]))*gaussian(z_view[i], gal.z, gal.dz)
         return log(dz*I*mag_int*gal.weight)
     else:
         Schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, h = omega.h) # Modo semplice per tirare fuori i parametri di Schechter
@@ -174,7 +174,7 @@ cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameter
         grid = it.product(ra_view,dec_view,z_view) # non sono sicuro funzioni. Nel caso levare il view
         for point in grid:
             Mth = absM(point[2], m_th, omega)
-            I += np.exp(logpost(omega.LuminosityDistance(point[2]),point[1],point[0]))*Integrand_dark(point[2], omega, alpha, Mstar, Mth, M_max, CoVol)
+            I += np.exp(logpost([omega.LuminosityDistance(point[2]),point[1],point[0]]))*Integrand_dark(point[2], omega, alpha, Mstar, Mth, M_max, CoVol)
 
         return log(dz*dra*ddec*I*gal.weight)
 

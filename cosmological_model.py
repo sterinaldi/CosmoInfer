@@ -132,7 +132,7 @@ class CosmologicalModel(cpnest.model.Model):
         #                         em_selection = self.em_selection, zmin = self.bounds[2+j][0], zmax = self.bounds[2+j][1]) for j,e in enumerate(self.data)])
         logL = 0.
         for e in self.data:
-            logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, self.O, 18., Ntot = e.n_tot, zmin = e.zmin, zmax = e.zmax)
+            logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, self.O, 18., Ntot = e.n_tot)
         self.O.DestroyCosmologicalParameters()
         if math.isinf(logL):
             return -np.inf
@@ -174,9 +174,10 @@ if __name__=='__main__':
         rel_z_error = opts.uncert # errore relativo sullo z della galassia (moto proprio + errore sperimentale)
         events = readdata.read_event(opts.event_class, errors = errors, omega = omega, input_folder = opts.data, N_ev_max = opts.nevmax, rel_z_error = rel_z_error, n_tot = opts.hosts)
 
+    if opts.event_class == 'CBC':
+        events = readdata.read_event(opts.event_class, input_folder = opts.data)
     else:
-        events = readdata.read_event(opts.event_class, opts.data, opts.event)
-
+        print('I do not know the class {0}, exit...'.format(opts.event_class))
     model = opts.model
     if opts.event is None:
         opts.event = 0
@@ -202,6 +203,7 @@ if __name__=='__main__':
                            maxmcmc      = opts.maxmcmc,
                            output       = output,
                            nhamiltonian = 0)
+        exit()
         work.run()
         print('log Evidence {0}'.format(work.NS.logZ))
         x = work.posterior_samples.ravel()
