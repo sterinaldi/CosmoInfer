@@ -151,7 +151,7 @@ class DPGMMSkyPosterior(object):
 
         sys.stderr.write("Ranking the galaxies: computing log posterior for %d galaxies\n"%(self.catalog.shape[0]))
         jobs        = ((self.density,np.array((d,dec,ra))) for d, dec, ra in zip(self.catalog[:,2],self.catalog[:,1],self.catalog[:,0]))
-        results     = self.pool.imap(logPosterior, jobs, chunksize = np.int(self.catalog.shape[0]/ (self.nthreads * 16)))
+        results     = self.pool.imap(logPosterior, jobs, chunksize = 1) #np.int(self.catalog.shape[0]/ (self.nthreads * 16)))
         logProbs    = np.array([r for r in results])
 
         idx         = ~np.isnan(logProbs)
@@ -163,6 +163,7 @@ class DPGMMSkyPosterior(object):
         self.ranked_B           = self.catalog[idx,4]
         self.ranked_dB          = self.catalog[idx,5]
         self.ranked_Babs        = self.catalog[idx,6]
+        self.peculiarmotion     = self.catalog[idx,7]
 
         order                   = self.ranked_probability.argsort()[::-1]
 
@@ -172,7 +173,9 @@ class DPGMMSkyPosterior(object):
         self.ranked_dl          = self.ranked_dl[order]
         self.ranked_z           = self.ranked_z[order]
         self.ranked_B           = self.ranked_B[order]
-        self.ranked_dB          = self.ranked_Babs[order]
+        self.ranked_dB          = self.ranked_dB[order]
+        self.ranked_Babs        = self.ranked_Babs[order]
+        self.peculiarmotion     = self.peculiarmotion[order]
 
     def evaluate_volume_map(self):
         N = self.bins[0]*self.bins[1]*self.bins[2]
@@ -265,6 +268,30 @@ class DPGMMSkyPosterior(object):
         del self.log_skymap_sorted
         del self.log_skymap_cum
         return self.area_confidence,None
+
+    def ConfidenceCoordinates(self, adLevels):
+        # create a normalized cumulative distribution
+        self.log_skymap_sorted  = np.sort(self.log_skymap.flatten())[::-1]
+        self.log_skymap_cum     = fast_log_cumulative(self.log_skymap_sorted)
+        # find the indeces  corresponding to the given CLs
+        adLevels                = np.ravel([adLevels])
+        args                    = [(self.log_skymap_sorted,self.log_skymap_cum,level) for level in adLevels]
+        adHeights               = self.pool.map(FindHeights,args)
+        ramin                   = []
+        ramax                   = []
+        decmin                  = []
+        decmax                  = []
+
+        for height in adHeights:
+            (index_dec,index_ra,) = np.where(self.log_skymap>=height)
+            ra     = self.grid[2][index_ra]
+            dec    = self.grid[1][index_dec]
+            ramin.append(ra.min())
+            ramax.append(ra.max())
+            decmin.append(dec.min())
+            decmax.append(dec.max())
+
+        return ramin, ramax, decmin, decmax
 
     def ConfidenceDistance(self, adLevels):
         cumulative_distribution     = np.cumsum(self.distance_map*self.dD)
@@ -363,7 +390,7 @@ def FindLevelForHeight(inLogArr, logvalue):
 #---------
 
 def readGC(file,dpgmm,standard_cosmology=True):
-    ra, dec, z, dl, B, dB, B_abs = [], [], [], [], [], [], []
+    ra, dec, z, dl, B, dB, B_abs, pecmot = [], [], [], [], [], [], [], []
 
     '''
     Glade 2.3
@@ -393,15 +420,19 @@ def readGC(file,dpgmm,standard_cosmology=True):
             dec.append(np.float(gal['DEC']))
             z.append(np.float(gal['z']))
             B.append(np.float(gal['B']))
-            dB.append(np.float(gal['B_err']))
+            if np.isfinite(gal['B_err']):
+                dB.append(np.float(gal['B_err']))
+            else:
+                dB.append(0.5)
             B_abs.append(np.float(gal['B_abs']))
+            pecmot.append(np.float(gal['flag3']))
 
 
             if not(np.isnan(z[-1])) and (zmin < z[-1] < zmax):
                 dl.append(lal.LuminosityDistance(omega,z[-1]))
             else:
                 dl.append(-1)
-    return np.column_stack((np.radians(np.array(ra)),np.radians(np.array(dec)),np.array(dl),np.array(z), np.array(B), np.array(dB), np.array(B_abs))
+    return np.column_stack((np.radians(np.array(ra)),np.radians(np.array(dec)),np.array(dl),np.array(z), np.array(B), np.array(dB), np.array(B_abs), np.array(pecmot)))
 
 def find_redshift_limits(h, om, dmin, dmax):
 
@@ -456,7 +487,7 @@ def main():
 
     print(options)
     np.random.seed(1)
-    CLs                 = [0.1,0.2,0.25,0.3,0.4,0.5,0.6,0.68,0.7,0.75,0.8,0.9] # add options?
+    CLs                 = [0.05,0.1,0.2,0.25,0.3,0.4,0.5,0.6,0.68,0.7,0.75,0.8,0.9,0.95] # add options?
     input_file          = options.input
     injFile             = options.injfile
     eventID             = options.event_id
@@ -525,16 +556,18 @@ def main():
                              dpgmm.ranked_B[:options.ranks],
                              dpgmm.ranked_dB[:options.ranks],
                              dpgmm.ranked_Babs[:options.ranks],
+                             dpgmm.peculiarmotion[:options.ranks],
                              dpgmm.ranked_probability[:options.ranks]]).T,
-                   fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
-                   header='ra[deg]\tdec[deg]\tDL[Mpc]\tz\tB\tB_err\tB_abs\tlogposterior')
+                   fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
+                   header='ra[deg]\tdec[deg]\tDL[Mpc]\tz\tB\tB_err\tB_abs\tpec.mot.corr.\tlogposterior')
 
     dpgmm.evaluate_volume_map()
-    volumes, searched_volume        = dpgmm.ConfidenceVolume(CLs)
+    volumes, searched_volume          = dpgmm.ConfidenceVolume(CLs)
     dpgmm.evaluate_sky_map()
-    areas, searched_area            = dpgmm.ConfidenceArea(CLs)
+    areas, searched_area              = dpgmm.ConfidenceArea(CLs)
+    ramin, ramax, decmin, decmax      = dpgmm.ConfidenceCoordinates(CLs)
     dpgmm.evaluate_distance_map()
-    distances, searched_distance    = dpgmm.ConfidenceDistance(CLs)
+    distances, searched_distance      = dpgmm.ConfidenceDistance(CLs)
 
     if dpgmm.catalog is not None:
         number_of_galaxies = np.zeros(len(CLs),dtype=np.int)
@@ -562,8 +595,8 @@ def main():
         plt.xlabel(r"$\mathrm{Distance/Mpc}$")
         plt.ylabel(r"$\mathrm{probability}$ $\mathrm{density}$")
         plt.savefig(os.path.join(options.output,'distance_posterior.pdf'),bbox_inches='tight')
-    np.savetxt(os.path.join(options.output,'confidence_levels.txt'), np.array([CLs, volumes, areas, distances]).T, fmt='%.2f\t%f\t%f\t%f')
-    if dpgmm.injection is not None: np.savetxt(os.path.join(options.output,'searched_quantities.txt'), np.array([searched_volume,searched_area,searched_distance]), fmt='%s\t%s')
+    np.savetxt(os.path.join(options.output,'confidence_levels.txt'), np.array([CLs, volumes, areas, distances, ramin, ramax, decmin, decmax]).T, fmt='%.2f\t%f\t%f\t%f\t%f\t%f\t%f\t%f')
+    if dpgmm.injection is not None: np.savetxt(os.path.join(options.output,'searched_quantities.txt'), np.array([searched_volume,searched_area,searched_distance]), fmt='%s\t%s\t%s')
 
     # dist_inj,ra_inj,dec_inj,tc
     if injFile is not None:
@@ -631,9 +664,9 @@ def main():
                 threshold = dpgmm.heights['0.9']
                 (k,) = np.where(dpgmm.ranked_probability>threshold)
                 np.savetxt(os.path.join(options.output,'galaxy_0.9.txt'),
-                           np.array([np.degrees(dpgmm.ranked_ra[k]),np.degrees(dpgmm.ranked_dec[k]),dpgmm.ranked_dl[k],dpgmm.ranked_zs[k],dpgmm.ranked_zp[k],dpgmm.ranked_probability[k]]).T,
-                           fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
-                           header='ra[deg]\tdec[deg]\tDL[Mpc]\tz_spec\tz_phot\tlogposterior')
+                           np.array([np.degrees(dpgmm.ranked_ra[k]),np.degrees(dpgmm.ranked_dec[k]),dpgmm.ranked_dl[k],dpgmm.ranked_z[k],dpgmm.ranked_B[k], dpgmm.ranked_dB[k], dpgmm.ranked_Babs[k], dpgmm.peculiarmotion[k],dpgmm.ranked_probability[k]]).T,
+                           fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
+                           header='ra[deg]\tdec[deg]\tDL[Mpc]\tz\tB\tB_err\tB_abs\tpec.mot.corr.\tlogposterior')
 
                 imax = dpgmm.ranked_probability.argmax()
                 threshold = dpgmm.heights['0.5']
@@ -642,9 +675,9 @@ def main():
                 MAX = dpgmm.grid[0][-1]
                 sys.stderr.write("%d galaxies above threshold, plotting\n"%(len(k)))
                 np.savetxt(os.path.join(options.output,'galaxy_0.5.txt'),
-                           np.array([np.degrees(dpgmm.ranked_ra[k]),np.degrees(dpgmm.ranked_dec[k]),dpgmm.ranked_dl[k],dpgmm.ranked_zs[k],dpgmm.ranked_zp[k],dpgmm.ranked_probability[k]]).T,
-                           fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
-                           header='ra[deg]\tdec[deg]\tDL[Mpc]\tz_spec\tz_phot\tlogposterior')
+                           np.array([np.degrees(dpgmm.ranked_ra[k]),np.degrees(dpgmm.ranked_dec[k]),dpgmm.ranked_dl[k],dpgmm.ranked_z[k],dpgmm.ranked_B[k], dpgmm.ranked_dB[k], dpgmm.ranked_Babs[k], dpgmm.peculiarmotion[k],dpgmm.ranked_probability[k]]).T,
+                           fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
+                           header='ra[deg]\tdec[deg]\tDL[Mpc]\tz\tB\tB_err\tB_abs\tpec.mot.corr.\tlogposterior')
                 from mpl_toolkits.mplot3d import Axes3D
 #                fig = plt.figure(figsize=(13.5,8))  # PRL default width
                 fig = plt.figure(figsize=(13.5,9))

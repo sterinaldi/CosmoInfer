@@ -559,7 +559,7 @@ def main():
                              dpgmm.peculiarmotion[:options.ranks],
                              dpgmm.ranked_probability[:options.ranks]]).T,
                    fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
-                   header='ra[deg]\tdec[deg]\tDL[Mpc]\tz\tB\tB_err\tB_abs\tpec.mot.corr.\tlogposterior')
+                   header='ra\tdec\tDL\tz\tB\tB_err\tB_abs\tpec.mot.corr.\tlogposterior')
 
     dpgmm.evaluate_volume_map()
     volumes, searched_volume          = dpgmm.ConfidenceVolume(CLs)
@@ -666,7 +666,7 @@ def main():
                 np.savetxt(os.path.join(options.output,'galaxy_0.9.txt'),
                            np.array([np.degrees(dpgmm.ranked_ra[k]),np.degrees(dpgmm.ranked_dec[k]),dpgmm.ranked_dl[k],dpgmm.ranked_z[k],dpgmm.ranked_B[k], dpgmm.ranked_dB[k], dpgmm.ranked_Babs[k], dpgmm.peculiarmotion[k],dpgmm.ranked_probability[k]]).T,
                            fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
-                           header='ra[deg]\tdec[deg]\tDL[Mpc]\tz\tB\tB_err\tB_abs\tpec.mot.corr.\tlogposterior')
+                           header='ra\tdec\tDL\tz\tB\tB_err\tB_abs\tpec.mot.corr.\tlogposterior')
 
                 imax = dpgmm.ranked_probability.argmax()
                 threshold = dpgmm.heights['0.5']
@@ -677,7 +677,7 @@ def main():
                 np.savetxt(os.path.join(options.output,'galaxy_0.5.txt'),
                            np.array([np.degrees(dpgmm.ranked_ra[k]),np.degrees(dpgmm.ranked_dec[k]),dpgmm.ranked_dl[k],dpgmm.ranked_z[k],dpgmm.ranked_B[k], dpgmm.ranked_dB[k], dpgmm.ranked_Babs[k], dpgmm.peculiarmotion[k],dpgmm.ranked_probability[k]]).T,
                            fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
-                           header='ra[deg]\tdec[deg]\tDL[Mpc]\tz\tB\tB_err\tB_abs\tpec.mot.corr.\tlogposterior')
+                           header='ra\tdec\tDL\tz\tB\tB_err\tB_abs\tpec.mot.corr.\tlogposterior')
                 from mpl_toolkits.mplot3d import Axes3D
 #                fig = plt.figure(figsize=(13.5,8))  # PRL default width
                 fig = plt.figure(figsize=(13.5,9))

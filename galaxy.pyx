@@ -11,7 +11,7 @@ cdef class Galaxy:
                        double declination,
                        double redshift,
                        bint is_detected,
-                       double rel_z_error = 0.1,
+                       double z_error = 0.1,
                        double abs_magnitude=INFINITY,
                        double app_magnitude=INFINITY,
                        double dapp_magnitude=INFINITY,
@@ -21,7 +21,7 @@ cdef class Galaxy:
         self.RA             = right_ascension
         self.DEC            = declination
         self.z              = redshift
-        self.dz             = redshift*rel_z_error
+        self.dz             = redshift*z_error
         self.weight         = weight
         self.is_detected    = is_detected # Boolean value
 

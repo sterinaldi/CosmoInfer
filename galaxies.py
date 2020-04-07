@@ -5,7 +5,7 @@ import numpy as np
 import pickle
 from galaxy import Galaxy
 
-def read_galaxy_catalog(limits, rel_z_error = 0.1, catalog_data = None, catalog_file = None, n_tot = None):
+def read_galaxy_catalog(limits, catalog_file = None, n_tot = None):
     '''
     The catalog can be passed either as a path or, if precedently loaded, as np.array.
     In case both data and path are provided, already loaded data are used.
@@ -35,14 +35,18 @@ def read_galaxy_catalog(limits, rel_z_error = 0.1, catalog_data = None, catalog_
         glade_names = "PGCname, GWGCname, HyperLedaname, 2MASSname, SDSS-DR12name,\
                     flag1, RA, DEC, dist, dist_err, z, B, B_err, B_abs, J, J_err,\
                     H, H_err, K, K_err, flag2, flag3"
-        catalog_data = np.atleast_1d(np.genfromtxt(catalog_file, names=glade_names)) # Troubles with single row files.
+        catalog_data = np.atleast_1d(np.genfromtxt(catalog_file, names=True)) # Troubles with single row files.
 
     catalog = []
 
     for i in range(catalog_data.shape[0]):
         # Check the entries: B-band mag (abs and apparent), redshift and proximity to GW position posteriors
-        if (catalog_data['flag2'][i] == 1 or catalog_data['flag2'][i] == 3) and isinbound(catalog_data[i], limits):
-            catalog.append(Galaxy(i, np.deg2rad(catalog_data['RA'][i]), np.deg2rad(catalog_data['DEC'][i]), catalog_data['z'][i], True, rel_z_error = rel_z_error, app_magnitude = catalog_data['B'][i], dapp_magnitude = catalog_data['B_err'][i] , abs_magnitude = catalog_data['B_abs'][i])) # Controlla nomi con catalogo!
+        if isinbound(catalog_data[i], limits):
+            if catalog_data['pec.mot.corr']==1.:
+                z_error = 0.01 # errore dovuto alla misura
+            else
+                z_error = 0.1  # assumo un 10% conservativo oltre i 300 Mpc
+            catalog.append(Galaxy(i, np.deg2rad(catalog_data['ra'][i]), np.deg2rad(catalog_data['dec'][i]), catalog_data['z'][i], True, z_error = z_error, app_magnitude = catalog_data['B'][i], dapp_magnitude = catalog_data['B_err'][i] , abs_magnitude = catalog_data['B_abs'][i])) # Controlla nomi con catalogo!
             # Warning: GLADE stores no information on dz. 2B corrected.
 
     catalog = catalog_weight(catalog, ngal = n_tot) # Implementare meglio la selezione del peso delle galassie.
@@ -50,7 +54,7 @@ def read_galaxy_catalog(limits, rel_z_error = 0.1, catalog_data = None, catalog_
     return catalog
 
 def isinbound(galaxy, limits):
-    if (limits['RA'][0] <= np.deg2rad(galaxy['RA']) <= limits['RA'][1]) and (limits['DEC'][0] <= np.deg2rad(galaxy['DEC']) <= limits['DEC'][1]) and (limits['z'][0] <= galaxy['z'] <= limits['z'][1]) :
+    if (limits['RA'][0] <= np.deg2rad(galaxy['ra']) <= limits['RA'][1]) and (limits['DEC'][0] <= np.deg2rad(galaxy['dec']) <= limits['DEC'][1]) and (limits['z'][0] <= galaxy['z'] <= limits['z'][1]) :
         return True
     return False
 
