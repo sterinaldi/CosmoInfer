@@ -591,8 +591,8 @@ def main():
         plt.xlabel(r"$\mathrm{Distance/Mpc}$")
         plt.ylabel(r"$\mathrm{probability}$ $\mathrm{density}$")
         plt.savefig(os.path.join(options.output,'distance_posterior.pdf'),bbox_inches='tight')
-    np.savetxt(os.path.join(options.output,'confidence_levels.txt'), np.array([CLs, volumes, areas, distances, ramin, ramax, decmin, decmax]).T, fmt='%.2f\t%f\t%f\t%f')
-    if dpgmm.injection is not None: np.savetxt(os.path.join(options.output,'searched_quantities.txt'), np.array([searched_volume,searched_area,searched_distance]), fmt='%s\t%s')
+    np.savetxt(os.path.join(options.output,'confidence_levels.txt'), np.array([CLs, volumes, areas, distances, ramin, ramax, decmin, decmax]).T, fmt='%.2f\t%f\t%f\t%f\t%f\t%f\t%f\t%f')
+    if dpgmm.injection is not None: np.savetxt(os.path.join(options.output,'searched_quantities.txt'), np.array([searched_volume,searched_area,searched_distance]), fmt='%s\t%s\t%s')
 
     # dist_inj,ra_inj,dec_inj,tc
     if injFile is not None:
@@ -660,9 +660,9 @@ def main():
                 threshold = dpgmm.heights['0.9']
                 (k,) = np.where(dpgmm.ranked_probability>threshold)
                 np.savetxt(os.path.join(options.output,'galaxy_0.9.txt'),
-                           np.array([np.degrees(dpgmm.ranked_ra[k]),np.degrees(dpgmm.ranked_dec[k]),dpgmm.ranked_dl[k],dpgmm.ranked_zs[k],dpgmm.ranked_zp[k],dpgmm.ranked_probability[k]]).T,
-                           fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
-                           header='ra[deg]\tdec[deg]\tDL[Mpc]\tz_spec\tz_phot\tlogposterior')
+                           np.array([np.degrees(dpgmm.ranked_ra[k]),np.degrees(dpgmm.ranked_dec[k]),dpgmm.ranked_dl[k],dpgmm.ranked_z[k],dpgmm.ranked_B[k], dpgmm.ranked_dB[k], dpgmm.ranked_Babs[k], dpgmm.peculiarmotion[k],dpgmm.ranked_probability[k]]).T,
+                           fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
+                           header='ra[deg]\tdec[deg]\tDL[Mpc]\tz\tB\tB_err\tB_abs\tpec.mot.corr.\tlogposterior')
 
                 imax = dpgmm.ranked_probability.argmax()
                 threshold = dpgmm.heights['0.5']
@@ -671,9 +671,9 @@ def main():
                 MAX = dpgmm.grid[0][-1]
                 sys.stderr.write("%d galaxies above threshold, plotting\n"%(len(k)))
                 np.savetxt(os.path.join(options.output,'galaxy_0.5.txt'),
-                           np.array([np.degrees(dpgmm.ranked_ra[k]),np.degrees(dpgmm.ranked_dec[k]),dpgmm.ranked_dl[k],dpgmm.ranked_zs[k],dpgmm.ranked_zp[k],dpgmm.ranked_probability[k]]).T,
-                           fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
-                           header='ra[deg]\tdec[deg]\tDL[Mpc]\tz_spec\tz_phot\tlogposterior')
+                           np.array([np.degrees(dpgmm.ranked_ra[k]),np.degrees(dpgmm.ranked_dec[k]),dpgmm.ranked_dl[k],dpgmm.ranked_z[k],dpgmm.ranked_B[k], dpgmm.ranked_dB[k], dpgmm.ranked_Babs[k], dpgmm.peculiarmotion[k],dpgmm.ranked_probability[k]]).T,
+                           fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
+                           header='ra[deg]\tdec[deg]\tDL[Mpc]\tz\tB\tB_err\tB_abs\tpec.mot.corr.\tlogposterior')
                 from mpl_toolkits.mplot3d import Axes3D
 #                fig = plt.figure(figsize=(13.5,8))  # PRL default width
                 fig = plt.figure(figsize=(13.5,9))
