@@ -131,12 +131,8 @@ class CosmologicalModel(cpnest.model.Model):
         # logL = np.sum([lk.logLikelihood_single_event(self.hosts[e.ID], e.dl, e.sigma, self.O,
         #                         em_selection = self.em_selection, zmin = self.bounds[2+j][0], zmax = self.bounds[2+j][1]) for j,e in enumerate(self.data)])
         logL = 0.
-        print(self.data)
         for e in self.data:
-            print(e)
-            print(logL)
             logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, self.O, 18., Ntot = e.n_tot)
-            print(logL)
         self.O.DestroyCosmologicalParameters()
 
         return logL
@@ -205,6 +201,7 @@ if __name__=='__main__':
                            maxmcmc      = opts.maxmcmc,
                            output       = output,
                            nhamiltonian = 0)
+        # exit()
         work.run()
         print('log Evidence {0}'.format(work.NS.logZ))
         x = work.posterior_samples.ravel()

@@ -92,11 +92,7 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
 
     if np.isfinite(dark_term):
         for i in range(M):
-            print(i)
-            sys.stdout.flush()
             logL = log_add(dark_term, logL)
-    print(logL)
-    sys.stdout.flush()
     return logL
 
 cdef LumDist(z, omega):
@@ -139,9 +135,9 @@ cdef double Integrand_dark(double z, CosmologicalParameters omega, double alpha,
 @cython.nonecheck(False)
 @cython.cdivision(True)
 
-cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameters omega, double zmin, double zmax, double ramin, double ramax, double decmin, double decmax, double m_th = 18, double M_max = 0, double M_min = -27):
+cpdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameters omega, double zmin, double zmax, double ramin, double ramax, double decmin, double decmax, double m_th = 18, double M_max = 0, double M_min = -27):
 
-    cdef unsigned int i, n = 1000
+    cdef unsigned int i, n = 10
     cdef double mag_int
     cdef double LD_i
 
@@ -171,15 +167,15 @@ cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameter
             mag_int = 1.
         for i in range(n):
             LD_i = omega.LuminosityDistance(z_view[i])
-            I += np.exp(logpost([LD_i,gal.DEC,gal.RA]))*gaussian(z_view[i], gal.z, gal.dz)
+            I += np.exp(event.logP([LD_i,gal.DEC,gal.RA]))*gaussian(z_view[i], gal.z, gal.dz)
         return log(dz*I*mag_int*gal.weight)
     else:
         Schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, h = omega.h) # Modo semplice per tirare fuori i parametri di Schechter
         CoVol = (omega.ComovingVolume(zmax)-omega.ComovingVolume(zmin))
-        grid = it.product(ra_view,dec_view,z_view) # non sono sicuro funzioni. Nel caso levare il view
+        grid = [(x,y,t) for x in ra for y in dec for t in z] # non sono sicuro funzioni. Nel caso levare il view
         for point in grid:
             Mth = absM(point[2], m_th, omega)
-            I += np.exp(logpost([omega.LuminosityDistance(point[2]),point[1],point[0]]))*Integrand_dark(point[2], omega, alpha, Mstar, Mth, M_max, CoVol)
+            I += np.exp(event.logP([omega.LuminosityDistance(point[2]),point[1],point[0]]))*Integrand_dark(point[2], omega, alpha, Mstar, Mth, M_max, CoVol)
 
         return log(dz*dra*ddec*I*gal.weight)
 
@@ -187,7 +183,7 @@ cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameter
 @cython.wraparound(False)
 @cython.nonecheck(False)
 @cython.cdivision(True)
-cdef double ComputeLogLhNoPost(Galaxy gal, CosmologicalParameters omega, double zmin, double zmax, double m_th = 17, double M_max = 0, double M_min = -27):
+cpdef double ComputeLogLhNoPost(Galaxy gal, CosmologicalParameters omega, double zmin, double zmax, double m_th = 17, double M_max = 0, double M_min = -27):
     '''
     Calcolo probabilità di osservare la galassia considerata.
     Si considera, nel caso di galassia osservata, la densità di probabilità dovuta alla misura (gaussiane con errore da determinarsi)

@@ -142,7 +142,8 @@ class Event_CBC(object):
         '''
         galaxy must be a list with [LD, dec, ra]
         '''
-        return logPosterior((self.density_model, np.array(galaxy)))
+        logpost = logPosterior((self.density_model, np.array(galaxy)))
+        return logpost
 
 def read_TEST_event(errors = None, omega = None, input_folder = None, catalog_data = None, N_ev_max = None, rel_z_error = 0.1, n_tot = None):
     '''
