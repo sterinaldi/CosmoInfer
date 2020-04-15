@@ -24,10 +24,6 @@ cdef class Galaxy:
         self.dz             = redshift*z_error
         self.weight         = weight
         self.is_detected    = is_detected # Boolean value
-
-        if isnan(app_magnitude):
-          app_magnitude = INFINITY
-        else:
-          self.abs_magnitude  = abs_magnitude
-          self.app_magnitude  = app_magnitude
-          self.dapp_magnitude = dapp_magnitude
+        self.abs_magnitude  = abs_magnitude
+        self.app_magnitude  = app_magnitude
+        self.dapp_magnitude = dapp_magnitude

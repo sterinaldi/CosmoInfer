@@ -151,7 +151,7 @@ class DPGMMSkyPosterior(object):
 
         sys.stderr.write("Ranking the galaxies: computing log posterior for %d galaxies\n"%(self.catalog.shape[0]))
         jobs        = ((self.density,np.array((d,dec,ra))) for d, dec, ra in zip(self.catalog[:,2],self.catalog[:,1],self.catalog[:,0]))
-        results     = self.pool.imap(logPosterior, jobs, chunksize = 1) #np.int(self.catalog.shape[0]/ (self.nthreads * 16)))
+        results     = self.pool.imap(logPosterior, jobs, chunksize = np.int(self.catalog.shape[0]/ (self.nthreads * 16)))
         logProbs    = np.array([r for r in results])
 
         idx         = ~np.isnan(logProbs)

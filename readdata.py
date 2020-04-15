@@ -119,11 +119,12 @@ class Event_CBC(object):
         self.density_model          = pickle.load(open(density, 'rb'))
 
         self.cl      = np.genfromtxt(levels_file, names = ['CL','vol','area','LD', 'ramin', 'ramax', 'decmin', 'decmax'])
-        self.vol_90  = self.cl['vol'][np.where(self.cl['CL']==0.95)[0][0]]-self.cl['vol'][np.where(self.cl['CL']==0.05)[0][0]]
-        self.area_90 = self.cl['area'][np.where(self.cl['CL']==0.95)[0][0]]-self.cl['area'][np.where(self.cl['CL']==0.05)[0][0]]
+        # self.vol_90  = self.cl['vol'][np.where(self.cl['CL']==0.95)[0][0]]-self.cl['vol'][np.where(self.cl['CL']==0.05)[0][0]]
+        self.area_90 = self.cl['area'][np.where(self.cl['CL']==0.90)[0][0]]
         self.LDmin   = self.cl['LD'][np.where(self.cl['CL']==0.05)[0][0]]
         self.LDmax   = self.cl['LD'][np.where(self.cl['CL']==0.95)[0][0]]
         self.LDmean  = self.cl['LD'][np.where(self.cl['CL']==0.5)[0][0]]
+        self.vol_90  = (self.LDmax**3-self.LDmin**3)*self.area_90/(180.*360.)
         self.ramin   = self.cl['ramin'][np.where(self.cl['CL']==0.9)[0][0]]
         self.ramax   = self.cl['ramax'][np.where(self.cl['CL']==0.9)[0][0]]
         self.decmin  = self.cl['decmin'][np.where(self.cl['CL']==0.9)[0][0]]

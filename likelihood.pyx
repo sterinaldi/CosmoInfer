@@ -66,15 +66,19 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     decmin = event.decmin
     decmax = event.decmax
 
+    if Ntot < N:
+        # If there are more galaxies than expected, set to 0 the number of unseen objects.
+        M = 0
+
     for i in range(N):
         # Voglio calcolare, per ogni galassia, le due
         # quantità rilevanti descritte in CosmoInfer.
-        p_no_post_view[i]   = ComputeLogLhNoPost(hosts[i], omega, zmin, zmax)
-        p_with_post_view[i] = ComputeLogLhWithPost(hosts[i], event, omega, zmin, zmax, ramin, ramax, decmin, decmax)
+        p_no_post_view[i]   = ComputeLogLhNoPost(hosts[i], omega, zmin, zmax, m_th = m_th)
+        p_with_post_view[i] = ComputeLogLhWithPost(hosts[i], event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th)
 
     # Calcolo le likelihood anche per una singola dark galaxy
-    p_no_post_dark   = ComputeLogLhNoPost(mockgalaxy, omega, zmin, zmax)
-    p_with_post_dark = ComputeLogLhWithPost(mockgalaxy, event, omega, zmin, zmax, ramin, ramax, decmin, decmax)
+    p_no_post_dark   = ComputeLogLhNoPost(mockgalaxy, omega, zmin, zmax, m_th = m_th)
+    p_with_post_dark = ComputeLogLhWithPost(mockgalaxy, event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th)
     # Calcolo i termini che andranno sommati tra loro (logaritmi)
     cdef np.ndarray[double, ndim=1, mode="c"] addends = np.zeros(N, dtype=np.float64)
     cdef double[::1] addends_view = addends
@@ -214,7 +218,10 @@ cpdef double ComputeLogLhNoPost(Galaxy gal, CosmologicalParameters omega, double
 
         # return log(myERF(m_th)) # this (or better, the integral of exp(-(m-mth)^2/2sigma_m^2)
         # must be considered while dealing with non-trivial magnitude cut.
-        return log(myERF((m_th-gal.app_magnitude)/(gal.dapp_magnitude*sqrt(2.))))
+        if np.isfinite(gal.app_magnitude):
+            return log(myERF((m_th-gal.app_magnitude)/(gal.dapp_magnitude*sqrt(2.))))
+        else:
+            return 0.
     else:
         Schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, h = omega.h) # Modo semplice per tirare fuori i parametri di Schechter
         CoVol = (omega.ComovingVolume(zmax)-omega.ComovingVolume(zmin))
