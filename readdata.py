@@ -172,7 +172,6 @@ def read_TEST_event(errors = None, omega = None, input_folder = None, catalog_da
 
 def read_CBC_event(input_folder, n_tot = None, gal_density = 0.6675):
     all_files     = os.listdir(input_folder)
-    print(all_files)
     event_folders = []
     for file in all_files:
         if not '.' in file and 'event' in file:
