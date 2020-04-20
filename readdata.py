@@ -124,7 +124,7 @@ class Event_CBC(object):
         self.LDmin   = self.cl['LD'][np.where(self.cl['CL']==0.05)[0][0]]
         self.LDmax   = self.cl['LD'][np.where(self.cl['CL']==0.95)[0][0]]
         self.LDmean  = self.cl['LD'][np.where(self.cl['CL']==0.5)[0][0]]
-        self.vol_90  = (self.LDmax**3-self.LDmin**3)*self.area_90/(180.*360.)
+        self.vol_90  = 4*np.pi*(self.LDmax**3-self.LDmin**3)*self.area_90/(180.*360.*3)
         self.ramin   = self.cl['ramin'][np.where(self.cl['CL']==0.9)[0][0]]
         self.ramax   = self.cl['ramax'][np.where(self.cl['CL']==0.9)[0][0]]
         self.decmin  = self.cl['decmin'][np.where(self.cl['CL']==0.9)[0][0]]
@@ -132,18 +132,21 @@ class Event_CBC(object):
 
         if n_tot is not None:
             self.n_tot = n_tot
-        elif gal_density is not None:
-            self.n_tot = int(gal_density*self.vol_90)
-            print('Total number of galaxies in the considered volume ({0} Mpc^3): {1}'.format(self.vol_90, self.n_tot))
-            self.potential_galaxy_hosts = catalog_weight(self.potential_galaxy_hosts, weight = 'uniform', ngal = self.n_tot)
         else:
-            self.n_tot = self.n_hosts
+            if self.LDmean < 70: # se l'oggetto è vicino non posso assumere omogeneità
+                self.n_tot = len(self.potential_galaxy_hosts)
+            elif gal_density is not None:
+                self.n_tot = int(gal_density*self.vol_90)
+        print('Total number of galaxies in the considered volume ({0} Mpc^3): {1}'.format(self.vol_90, self.n_tot))
+        self.potential_galaxy_hosts = catalog_weight(self.potential_galaxy_hosts, weight = 'uniform', ngal = self.n_tot)
 
     def logP(self, galaxy):
         '''
         galaxy must be a list with [LD, dec, ra]
         '''
-        logpost = logPosterior((self.density_model, np.array(galaxy)))
+        logpost = logPosterior((self.density_model, np.array(galaxy)))/galaxy[0]
+        if not np.isfinite(logpost):
+            return 0.
         return logpost
 
 def read_TEST_event(errors = None, omega = None, input_folder = None, catalog_data = None, N_ev_max = None, rel_z_error = 0.1, n_tot = None):
