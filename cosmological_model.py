@@ -53,7 +53,7 @@ class CosmologicalModel(cpnest.model.Model):
         if self.model == "LambdaCDM":
 
             self.names  = ['h','om']
-            self.bounds = [[0.5,1.0],[0.04,0.5]]
+            self.bounds = [[0.5,1.8],[0.04,0.5]]
 
         elif self.model == "LambdaCDMDE":
 
