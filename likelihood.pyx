@@ -48,8 +48,9 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     cdef double dl
     cdef double score_z, sigma_z
     cdef double logL_sum = -INFINITY
-    cdef double logL_prod = 0
-    cdef double p_no_post_dark, p_with_post_dark
+    cdef double logL_prod = 0.
+    cdef double p_no_post_dark = 0.
+    cdef double p_with_post_dark = 0.
     cdef double zmin, zmax, ramin, ramax, decmin, decmax
 
     cdef Galaxy mockgalaxy = Galaxy(-1, 0,0,0,False, weight = 1./Ntot)
@@ -66,10 +67,9 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     decmin = event.decmin
     decmax = event.decmax
 
-    if Ntot < N:
+    if Ntot <= N:
         # If there are more galaxies than expected, set to 0 the number of unseen objects.
         M = 0
-
     for i in range(N):
         # Voglio calcolare, per ogni galassia, le due
         # quantità rilevanti descritte in CosmoInfer.
@@ -77,8 +77,9 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
         p_with_post_view[i] = ComputeLogLhWithPost(hosts[i], event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th)
 
     # Calcolo le likelihood anche per una singola dark galaxy
-    p_no_post_dark   = ComputeLogLhNoPost(mockgalaxy, omega, zmin, zmax, m_th = m_th)
-    p_with_post_dark = ComputeLogLhWithPost(mockgalaxy, event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th)
+    if not (M == 0):
+        p_no_post_dark   = ComputeLogLhNoPost(mockgalaxy, omega, zmin, zmax, m_th = m_th)
+        p_with_post_dark = ComputeLogLhWithPost(mockgalaxy, event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th)
     # Calcolo i termini che andranno sommati tra loro (logaritmi)
     cdef np.ndarray[double, ndim=1, mode="c"] addends = np.zeros(N, dtype=np.float64)
     cdef double[::1] addends_view = addends
@@ -86,7 +87,9 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
 
     for i in range(N):
         addends_view[i] = sum - p_no_post_view[i] + p_with_post_view[i] + M*p_no_post_dark
-    cdef double dark_term = sum + (M-1)*p_no_post_dark + p_with_post_dark
+    cdef double dark_term = 0.
+    if not (M == 0):
+        dark_term = sum + (M-1)*p_no_post_dark + p_with_post_dark
 
     # Manca da fare la somma finale
 
