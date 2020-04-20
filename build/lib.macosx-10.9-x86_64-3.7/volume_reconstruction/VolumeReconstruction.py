@@ -541,7 +541,7 @@ def main():
                               catalog            = options.catalog,
                               output             = options.output,
                               standard_cosmology = options.cosmology)
-
+                              
     dpgmm.compute_dpgmm()
 
     if dpgmm.catalog is not None:
