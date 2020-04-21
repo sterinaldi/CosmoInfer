@@ -144,7 +144,7 @@ class Event_CBC(object):
         '''
         galaxy must be a list with [LD, dec, ra]
         '''
-        logpost = logPosterior((self.density_model, np.array(galaxy)))/galaxy[0]
+        logpost = logPosterior((self.density_model, np.array(galaxy)))/(galaxy[0]**2)
         if not np.isfinite(logpost):
             return 0.
         return logpost
