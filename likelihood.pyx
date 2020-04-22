@@ -172,10 +172,17 @@ cpdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParamete
             mag_int = myERF((m_th-gal.app_magnitude)/(gal.dapp_magnitude*sqrt(2.))) # Integrale distribuzione in magnitudine (Analitico, vedi pdf.)
         else:
             mag_int = 1.
+        zup = gal.z+3*gal.dz
+        zdown = gal.z-3*gal.dz
+        # z = np.linspace(zdown, zup, n, dtype = np.float64)
+        # z_view = z
+        # dz = (zup - zdown)/n
+        CoVol = omega.ComovingVolume(zmax)-omega.ComovingVolume(zmin)
         for i in range(n):
             LD_i = omega.LuminosityDistance(z_view[i])
-            I += np.exp(event.logP([LD_i,gal.DEC,gal.RA]))*gaussian(z_view[i], gal.z, gal.dz)
-        return log(dz*I*mag_int*gal.weight)
+            I += dz*np.exp(event.logP([LD_i,gal.DEC,gal.RA]))*gaussian(gal.z, z_view[i], gal.dz)*omega.ComovingVolumeElement(z_view[i])/CoVol
+        # print('withpost:{0}, weight:{1}'.format(I,gal.weight))
+        return log(I*mag_int*gal.weight)
     else:
         Schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, h = omega.h) # Modo semplice per tirare fuori i parametri di Schechter
         CoVol = (omega.ComovingVolume(zmax)-omega.ComovingVolume(zmin))
@@ -183,7 +190,6 @@ cpdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParamete
         for point in grid:
             Mth = absM(point[2], m_th, omega)
             I += np.exp(event.logP([omega.LuminosityDistance(point[2]),point[1],point[0]]))*Integrand_dark(point[2], omega, alpha, Mstar, Mth, M_max, CoVol)
-
         return log(dz*dra*ddec*I*gal.weight)
 
 @cython.boundscheck(False)
@@ -221,10 +227,21 @@ cpdef double ComputeLogLhNoPost(Galaxy gal, CosmologicalParameters omega, double
 
         # return log(myERF(m_th)) # this (or better, the integral of exp(-(m-mth)^2/2sigma_m^2)
         # must be considered while dealing with non-trivial magnitude cut.
-        if np.isfinite(gal.app_magnitude):
-            return log(myERF((m_th-gal.app_magnitude)/(gal.dapp_magnitude*sqrt(2.))))
-        else:
-            return 0.
+        # if np.isfinite(gal.app_magnitude):
+        #     return log(myERF((m_th-gal.app_magnitude)/(gal.dapp_magnitude*sqrt(2.))))
+        # else:
+        #     return 0.
+        # zup = gal.z+3*gal.dz
+        # zdown = gal.z-3*gal.dz
+        # z = np.linspace(zdown, zup, n, dtype = np.float64)
+        # z_view = z
+        # dz = (zup - zdown)/n
+        # CoVol = omega.ComovingVolume(zup)-omega.ComovingVolume(zdown)
+        # for i in range(n):
+        #     I+=dz*gaussian(gal.z,z_view[i], gal.dz)*omega.ComovingVolumeElement(z_view[i])*(zup-zdown)/CoVol
+        # return log(I)
+        return 0.
+
     else:
         Schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, h = omega.h) # Modo semplice per tirare fuori i parametri di Schechter
         CoVol = (omega.ComovingVolume(zmax)-omega.ComovingVolume(zmin))

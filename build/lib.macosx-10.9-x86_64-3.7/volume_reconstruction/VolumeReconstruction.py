@@ -403,7 +403,7 @@ def readGC(file,dpgmm,standard_cosmology=True):
         omega       = lal.CreateCosmologicalParameters(0.7, 0.3, 0.7, -1.0, 0.0, 0.0)
         zmin, zmax  = find_redshift_limits([0.69,0.71], [0.29,0.31], dpgmm.grid[0][0], dpgmm.grid[0][-1])
     else:
-        zmin,zmax   = find_redshift_limits([0.1,1.2],[0.0,1.0],dpgmm.grid[0][0],dpgmm.grid[0][-1])
+        zmin,zmax   = find_redshift_limits([0.3,1.8],[0.0,1.0],dpgmm.grid[0][0],dpgmm.grid[0][-1])
     sys.stderr.write("selecting galaxies within redshift %f and %f from distances in %f and %f\n"%(zmin,zmax,dpgmm.grid[0][0],dpgmm.grid[0][-1]))
 
     for gal in cat:
@@ -411,7 +411,7 @@ def readGC(file,dpgmm,standard_cosmology=True):
         print(gal)
         if np.float(gal['z']) > 0.0:
             if not(standard_cosmology):
-                h       = np.random.uniform(0.1,2.0)
+                h       = np.random.uniform(0.3,1.8)
                 om      = np.random.uniform(0.0,1.0)
                 ol      = 1.0-om
                 omega   = lal.CreateCosmologicalParameters(h,om,ol,-1.0,0.0,0.0)
@@ -541,7 +541,7 @@ def main():
                               catalog            = options.catalog,
                               output             = options.output,
                               standard_cosmology = options.cosmology)
-                              
+
     dpgmm.compute_dpgmm()
 
     if dpgmm.catalog is not None:
@@ -597,6 +597,8 @@ def main():
         plt.savefig(os.path.join(options.output,'distance_posterior.pdf'),bbox_inches='tight')
     np.savetxt(os.path.join(options.output,'confidence_levels.txt'), np.array([CLs, volumes, areas, distances, ramin, ramax, decmin, decmax]).T, fmt='%.2f\t%f\t%f\t%f\t%f\t%f\t%f\t%f')
     if dpgmm.injection is not None: np.savetxt(os.path.join(options.output,'searched_quantities.txt'), np.array([searched_volume,searched_area,searched_distance]), fmt='%s\t%s\t%s')
+
+    np.savetxt(os.path.join(options.output,'distance_map.txt'), np.array([dpgmm.grid[0], dpgmm.distance_map]).T, fmt='%f\t%f', header='dist logpost')
 
     # dist_inj,ra_inj,dec_inj,tc
     if injFile is not None:

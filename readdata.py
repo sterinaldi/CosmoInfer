@@ -144,9 +144,7 @@ class Event_CBC(object):
         '''
         galaxy must be a list with [LD, dec, ra]
         '''
-        logpost = logPosterior((self.density_model, np.array(galaxy)))/(galaxy[0]**2)
-        if not np.isfinite(logpost):
-            return 0.
+        logpost = logPosterior((self.density_model, np.array(galaxy)))-2.*np.log(galaxy[0])+np.log(self.LDmax**3-self.LDmin**3)-np.log(3)
         return logpost
 
 def read_TEST_event(errors = None, omega = None, input_folder = None, catalog_data = None, N_ev_max = None, rel_z_error = 0.1, n_tot = None):
@@ -200,9 +198,3 @@ def read_event(event_class,*args,**kwargs):
     else:
         print("I do not know the class %s, exiting\n"%event_class)
         exit(-1)
-
-if __name__=="__main__":
-    input_folder = '/Users/wdp/repositories/LISA/LISA_BHB/errorbox_data/EMRI_data/EMRI_M1_GAUSS'
-    event_number = None
-    e = read_event("EMRI",input_folder, event_number)
-    print(e)
