@@ -172,25 +172,19 @@ cpdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParamete
             mag_int = myERF((m_th-gal.app_magnitude)/(gal.dapp_magnitude*sqrt(2.))) # Integrale distribuzione in magnitudine (Analitico, vedi pdf.)
         else:
             mag_int = 1.
-        zup = gal.z+3*gal.dz
-        zdown = gal.z-3*gal.dz
-        # z = np.linspace(zdown, zup, n, dtype = np.float64)
-        # z_view = z
-        # dz = (zup - zdown)/n
         CoVol = omega.ComovingVolume(zmax)-omega.ComovingVolume(zmin)
         for i in range(n):
             LD_i = omega.LuminosityDistance(z_view[i])
-            I += dz*np.exp(event.logP([LD_i,gal.DEC,gal.RA]))*gaussian(gal.z, z_view[i], gal.dz)*omega.ComovingVolumeElement(z_view[i])/CoVol
+            I += dz*exp(event.logP([LD_i,gal.DEC,gal.RA]))*gaussian(gal.z, z_view[i], gal.dz)*omega.ComovingVolumeElement(z_view[i])/CoVol
         # print('withpost:{0}, weight:{1}'.format(I,gal.weight))
         return log(I*mag_int*gal.weight)
     else:
         Schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, h = omega.h) # Modo semplice per tirare fuori i parametri di Schechter
         CoVol = (omega.ComovingVolume(zmax)-omega.ComovingVolume(zmin))
-        grid = [(x,y,t) for x in ra for y in dec for t in z] # non sono sicuro funzioni. Nel caso levare il view
-        for point in grid:
-            Mth = absM(point[2], m_th, omega)
-            I += np.exp(event.logP([omega.LuminosityDistance(point[2]),point[1],point[0]]))*Integrand_dark(point[2], omega, alpha, Mstar, Mth, M_max, CoVol)
-        return log(dz*dra*ddec*I*gal.weight)
+        for i in range(n):
+            Mth = absM(z_view[i], m_th, omega)
+            I += dz*exp(event.marg_logP(omega.LuminosityDistance(z_view[i])))*Integrand_dark(z_view[i], omega, alpha, Mstar, Mth, M_max, CoVol)
+        return log(I*gal.weight)
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -207,7 +201,7 @@ cpdef double ComputeLogLhNoPost(Galaxy gal, CosmologicalParameters omega, double
     Nota: Il prior in posizione per le galassie che non ho visto è 1/4pi (ovvero tutto il cielo) oppure una porzione corrispondente
     alla regione al 95%?
     '''
-    cdef unsigned int i, n = 1000
+    cdef unsigned int i, n = 10
     cdef double mag_int
     cdef double LD_i
 

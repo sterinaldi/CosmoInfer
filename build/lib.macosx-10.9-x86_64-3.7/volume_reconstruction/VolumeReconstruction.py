@@ -195,11 +195,12 @@ class DPGMMSkyPosterior(object):
         self.log_skymap = np.log(self.skymap)
 
     def evaluate_distance_map(self):
-        cosdec                  = np.cos(self.grid[1])
-        intermediate            = np.trapz(self.volume_map, x=self.grid[2], axis=2)
-        self.distance_map       = np.trapz(cosdec*intermediate, x=self.grid[1], axis=1)
-        self.log_distance_map   = np.log(self.distance_map)
-        self.distance_map      /= (self.distance_map*np.diff(self.grid[0])[0]).sum()
+        cosdec                     = np.cos(self.grid[1])
+        intermediate               = np.trapz(self.volume_map, x=self.grid[2], axis=2)
+        self.distance_map          = np.trapz(cosdec*intermediate, x=self.grid[1], axis=1)
+        self.log_distance_map      = np.log(self.distance_map)
+        self.unnormed_distance_map = self.distance_map
+        self.distance_map         /= (self.distance_map*np.diff(self.grid[0])[0]).sum()
 
     def ConfidenceVolume(self, adLevels):
         # create a normalized cumulative distribution
@@ -483,6 +484,7 @@ def main():
     parser.add_option("--nsamps", type="int", dest="nsamps", help="number of posterior samples to utilise", default=None)
     parser.add_option("--cosmology", type="int", dest="cosmology", help="assume a lambda CDM cosmology?", default=True)
     parser.add_option("--3d", type="int", dest="threed", help="3d volume map", default=0)
+    parser.add_option("--tfile", type="string", dest="tfile", help="coalescence time file", default=None)
     (options, args)     = parser.parse_args()
 
     print(options)
@@ -517,6 +519,18 @@ def main():
         samples = np.column_stack((samples["distance"],samples["dec"],samples["ra"],samples["time"]))
     elif "logdistance" in samples.dtype.names:
         samples = np.column_stack((np.exp(samples["logdistance"]),samples["dec"],samples["ra"],samples["time"]))
+
+    try:
+        samples['time'].dtype
+    except:
+        try:
+            time = np.ones(len(samples))*np.genfromtxt(options.tfile)
+            samples = append_fields(samples, 'time', time, np.float64)
+        except:
+            print('No time provided, exit...')
+            exit()
+
+
 
     samps       = []
     gmst_rad    = []
@@ -598,7 +612,7 @@ def main():
     np.savetxt(os.path.join(options.output,'confidence_levels.txt'), np.array([CLs, volumes, areas, distances, ramin, ramax, decmin, decmax]).T, fmt='%.2f\t%f\t%f\t%f\t%f\t%f\t%f\t%f')
     if dpgmm.injection is not None: np.savetxt(os.path.join(options.output,'searched_quantities.txt'), np.array([searched_volume,searched_area,searched_distance]), fmt='%s\t%s\t%s')
 
-    np.savetxt(os.path.join(options.output,'distance_map.txt'), np.array([dpgmm.grid[0], dpgmm.distance_map]).T, fmt='%f\t%f', header='dist logpost')
+    np.savetxt(os.path.join(options.output,'distance_map.txt'), np.array([dpgmm.grid[0], dpgmm.unnormed_distance_map]).T, fmt='%f\t%f', header='dist\tpost')
 
     # dist_inj,ra_inj,dec_inj,tc
     if injFile is not None:

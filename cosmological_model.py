@@ -162,6 +162,7 @@ if __name__=='__main__':
     parser.add_option('-n', '--nevmax',      default=None, type='int', metavar='nevmax', help='Maximum number of considered events')
     parser.add_option('-u', '--uncert',      default='0.1', type='float', metavar='uncert', help='Relative uncertainty on z of each galaxy (peculiar motion)')
     parser.add_option('-a', '--hosts',       default=None, type='int', metavar='hosts', help='Total number of galaxies in considered volume')
+    parser.add_option('--EMcp',              default=0, type='int', metavar='EMcp', help='Electromagnetic counterpart')
     (opts,args)=parser.parse_args()
 
     em_selection = opts.em_selection
@@ -173,7 +174,7 @@ if __name__=='__main__':
         events = readdata.read_event(opts.event_class, errors = errors, omega = omega, input_folder = opts.data, N_ev_max = opts.nevmax, rel_z_error = rel_z_error, n_tot = opts.hosts)
 
     if opts.event_class == 'CBC':
-        events = readdata.read_event(opts.event_class, input_folder = opts.data)
+        events = readdata.read_event(opts.event_class, input_folder = opts.data, emcp = opts.EMcp)
     else:
         print('I do not know the class {0}, exit...'.format(opts.event_class))
     model = opts.model
