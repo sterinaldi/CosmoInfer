@@ -201,6 +201,7 @@ class DPGMMSkyPosterior(object):
         self.log_distance_map      = np.log(self.distance_map)
         self.unnormed_distance_map = self.distance_map
         self.distance_map         /= (self.distance_map*np.diff(self.grid[0])[0]).sum()
+        print('Normalization constant for distance map: {0}'.format((self.distance_map*np.diff(self.grid[0])[0]).sum()))
 
     def ConfidenceVolume(self, adLevels):
         # create a normalized cumulative distribution
@@ -510,6 +511,9 @@ def main():
         injection           = None
 
     samples = np.genfromtxt(input_file,names=True)
+    if not ('time' in samples.dtype.names or 'tc' in samples.dtype.names):
+            time = np.ones(len(samples))*np.genfromtxt(options.tfile)
+            samples = append_fields(samples, 'time', time, np.float64)
 
     # we are going to normalise the distance between 0 and 1
 
@@ -519,16 +523,6 @@ def main():
         samples = np.column_stack((samples["distance"],samples["dec"],samples["ra"],samples["time"]))
     elif "logdistance" in samples.dtype.names:
         samples = np.column_stack((np.exp(samples["logdistance"]),samples["dec"],samples["ra"],samples["time"]))
-
-    try:
-        samples['time'].dtype
-    except:
-        try:
-            time = np.ones(len(samples))*np.genfromtxt(options.tfile)
-            samples = append_fields(samples, 'time', time, np.float64)
-        except:
-            print('No time provided, exit...')
-            exit()
 
 
 

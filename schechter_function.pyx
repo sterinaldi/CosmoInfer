@@ -46,10 +46,10 @@ cdef class SchechterMagFunctionInternal:
         return 0.4*log(10.0)*self.phistar \
                * pow(10.0, -0.4*(self.alpha+1.0)*(m-self.Mstar)) \
                * exp(-pow(10, -0.4*(m-self.Mstar)))
-
     cdef double normalise(self):
         cdef double lowbound
         cdef double hibound
+
         if self.norm == -1:
 
             lowbound = pow(10, -0.4*(self.mmax-self.Mstar))
@@ -83,7 +83,7 @@ cpdef tuple SchechterMagFunction(double mmin, double mmax, double h=0.7, str ban
     if band == 'constant': # Perform incompleteness correction using B-band SF for constant luminosity weights
         band = 'B'
     cdef double Mstar_obs, alpha
-    
+
     Mstar_obs, alpha = schechter_function_params[band]
     cdef double Mstar = Mstar_obs + 5.*np.log10(h)
     cdef object smf = SchechterMagFunctionInternal(Mstar, alpha, mmin, mmax)

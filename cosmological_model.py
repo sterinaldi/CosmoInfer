@@ -74,6 +74,9 @@ class CosmologicalModel(cpnest.model.Model):
 
             print("Cosmological model %s not supported. Exiting...\n"%self.model)
             exit()
+        for event in data:
+            event.zmin = RedshiftCalculation(event.LDmin, cs.CosmologicalParameters(self.bounds[0][0],self.bounds[1][0], 0.7,-1,0))
+            event.zmax = RedshiftCalculation(event.LDmax, cs.CosmologicalParameters(self.bounds[0][1],self.bounds[1][1], 0.7,-1,0))
         #
         # for e in self.data:
         #     self.bounds.append([e.zmin,e.zmax])
@@ -132,10 +135,28 @@ class CosmologicalModel(cpnest.model.Model):
         #                         em_selection = self.em_selection, zmin = self.bounds[2+j][0], zmax = self.bounds[2+j][1]) for j,e in enumerate(self.data)])
         logL = 0.
         for e in self.data:
-            logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, self.O, 23., Ntot = e.n_tot)
+            logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, self.O, 18., Ntot = e.n_tot)
         self.O.DestroyCosmologicalParameters()
 
         return logL
+
+def LumDist(z, omega):
+    return 3e3*(z + (1-omega.om +omega.ol)*z**2/2.)/omega.h
+
+def dLumDist(z, omega):
+    return 3e3*(1+(1-omega.om+omega.ol)*z)/omega.h
+
+def RedshiftCalculation(LD, omega, zinit=0.3, limit = 0.001):
+    '''
+    Redshift given a certain luminosity, calculated by recursion.
+    Limit is the less significative digit.
+    '''
+    LD_test = LumDist(zinit, omega)
+    if abs(LD-LD_test) < limit :
+        return zinit
+    znew = zinit - (LD_test - LD)/dLumDist(zinit,omega)
+    return RedshiftCalculation(LD, omega, zinit = znew)
+
 
 truths = {'h':0.73,'om':0.25,'ol':0.75,'w0':-1.0,'w1':0.0}
 usage=""" %prog (options)"""
