@@ -52,8 +52,8 @@ class CosmologicalModel(cpnest.model.Model):
 
         if self.model == "LambdaCDM":
 
-            self.names  = ['h','om']
-            self.bounds = [[0.4,1.8],[0.04,0.5]]
+            self.names  = ['h']#,'om']
+            self.bounds = [[0.4,1.8]]#,[0.04,0.5]]
 
         elif self.model == "LambdaCDMDE":
 
@@ -75,8 +75,8 @@ class CosmologicalModel(cpnest.model.Model):
             print("Cosmological model %s not supported. Exiting...\n"%self.model)
             exit()
         for event in data:
-            event.zmin = RedshiftCalculation(event.LDmin, cs.CosmologicalParameters(self.bounds[0][0],self.bounds[1][0], 0.7,-1,0))
-            event.zmax = RedshiftCalculation(event.LDmax, cs.CosmologicalParameters(self.bounds[0][1],self.bounds[1][1], 0.7,-1,0))
+            event.zmin = RedshiftCalculation(event.LDmin, cs.CosmologicalParameters(self.bounds[0][0],0.3,0.7,-1,0)) # self.bounds[1][0], 0.7,-1,0))
+            event.zmax = RedshiftCalculation(event.LDmax, cs.CosmologicalParameters(self.bounds[0][1],0.3,0.7,-1,0)) # self.bounds[1][1], 0.7,-1,0))
         #
         # for e in self.data:
         #     self.bounds.append([e.zmin,e.zmax])
@@ -104,7 +104,7 @@ class CosmologicalModel(cpnest.model.Model):
             if self.model == "LambdaCDM":
 
                 z_idx = 2
-                self.O = cs.CosmologicalParameters(x['h'],x['om'],1.0-x['om'],-1.0,0.0)
+                self.O = cs.CosmologicalParameters(x['h'], 0.3,0.7, -1,0)#x['om'],1.0-x['om'],-1.0,0.0)
 
             elif self.model == "CLambdaCDM":
 

@@ -38,7 +38,7 @@ cdef class SchechterMagFunctionInternal:
         self.mmin = mmin
         self.mmax = mmax
         self.norm = -1
-
+        self.norm = self.normalise()
     def __call__(self, double m):
         return self._evaluate(m)
 
@@ -55,15 +55,15 @@ cdef class SchechterMagFunctionInternal:
             lowbound = pow(10, -0.4*(self.mmax-self.Mstar))
             hibound  = pow(10, -0.4*(self.mmin-self.Mstar))
 
-            # self.norm = quad(self._evaluate, self.mmin, self.mmax)[0]
-            self.norm = (gammainc(self.alpha+2, hibound)-gammainc(self.alpha+2, lowbound))*gamma(self.alpha+2)
+            self.norm = quad(self._evaluate, self.mmin, self.mmax)[0]
+            # self.norm = (gammainc(self.alpha+2, hibound)-gammainc(self.alpha+2, lowbound))*gamma(self.alpha+2)
         return self.norm
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
     cpdef double pdf(self, double m):
-        self.normalise()
-        return self._evaluate(m)/self.norm
+        norm = self.normalise()
+        return self._evaluate(m)/norm
 
 cpdef tuple SchechterMagFunction(double mmin, double mmax, double h=0.7, str band='B'):
     """
@@ -87,6 +87,7 @@ cpdef tuple SchechterMagFunction(double mmin, double mmax, double h=0.7, str ban
     Mstar_obs, alpha = schechter_function_params[band]
     cdef double Mstar = Mstar_obs + 5.*np.log10(h)
     cdef object smf = SchechterMagFunctionInternal(Mstar, alpha, mmin, mmax)
+    norm = smf.norm
     return smf.pdf, alpha, Mstar
 
 cdef inline double M_Mobs(double h, double M_obs):
