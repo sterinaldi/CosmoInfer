@@ -24,7 +24,7 @@ cdef inline double linear_density(double x, double a, double b): return a+log(x)
 @cython.nonecheck(False)
 @cython.cdivision(True)
 
-cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalParameters omega, double m_th, int Ntot):
+cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalParameters omega, double m_th, int Ntot, EMcp = 0.):
     """
     Likelihood function for a single GW event.
     Loops over all possible hosts to accumulate the likelihood
@@ -41,23 +41,29 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     em_selection :obj:'numpy.int': apply em selection function. optional. default = 0
     """
     cdef unsigned int i
-    cdef unsigned int N = len(hosts)
-    cdef unsigned int M = Ntot-N
+    cdef unsigned int N_bright = len(hosts)
+    cdef unsigned int N_dark = Ntot-N_bright
+    cdef unsigned int N_dark_em, N_dark_no, N_em
     cdef double logTwoPiByTwo = 0.5*log(2.0*np.pi)
     cdef double logL_galaxy
     cdef double dl
     cdef double score_z, sigma_z
     cdef double logL_sum = -INFINITY
     cdef double logL_prod = 0.
-    cdef double p_no_post_dark = 0.
-    cdef double p_with_post_dark = 0.
+    cdef double p_no_post_dark_em = 0.
+    cdef double p_with_post_dark_em = 0.
+    cdef double p_no_post_dark_no = 0.
     cdef double zmin, zmax, ramin, ramax, decmin, decmax
 
     cdef Galaxy mockgalaxy = Galaxy(-1, 0,0,0,False, weight = 1./Ntot)
 
-    cdef np.ndarray[double, ndim=1, mode="c"] p_with_post = np.zeros(N, dtype=np.float64)
+    cdef object Schechter
+    cdef double alpha, Mstar
+    cdef double M_cutoff = -12.
+
+    cdef np.ndarray[double, ndim=1, mode="c"] p_with_post = np.zeros(N_bright, dtype=np.float64)
     cdef double[::1] p_with_post_view = p_with_post
-    cdef np.ndarray[double, ndim=1, mode="c"] p_no_post = np.zeros(N, dtype=np.float64)
+    cdef np.ndarray[double, ndim=1, mode="c"] p_no_post = np.zeros(N_bright, dtype=np.float64)
     cdef double[::1] p_no_post_view = p_no_post
     # Attenzione: non sono ancora stati sistemati i prior sulle posizioni per la dark galaxy
     # zmin   = RedshiftCalculation(event.LDmin, omega)
@@ -69,40 +75,61 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     decmin = event.decmin
     decmax = event.decmax
 
-    if Ntot <= N:
+    Schechter, alpha, Mstar = SchechterMagFunction(-23., 0., h = omega.h)
+    N_em = int(Integrate_Schechter_weighted(0., -23., -24., Schechter, M_cutoff)*Ntot)
+    N_dark_em = N_em - N_bright
+    N_dark_no = N_dark - N_dark_em
+
+    if N_em <= N_bright:
         # If there are more galaxies than expected, set to 0 the number of unseen objects.
-        M = 0
-    for i in range(N):
+        N_dark_em = 0
+        N_dark_no = Ntot - N_bright
+
+    if EMcp:
+        return ComputeLogLhWithPost(hosts[0], event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th, M_cutoff = M_cutoff)
+
+    print('Total number of galaxies: {0}'.format(Ntot))
+    print('Bright galaxies: {0}'.format(N_bright))
+    print('Dark galaxies: {0}'.format(N_dark))
+    print('Emitting galaxies: {0}'.format(N_em))
+    print('Emitting dark galaxies: {0}'.format(N_dark_em))
+    print('Quiet dark galaxies: {0}'.format(N_dark_no))
+    for i in range(N_bright):
         # Voglio calcolare, per ogni galassia, le due
         # quantità rilevanti descritte in CosmoInfer.
-        p_no_post_view[i]   = ComputeLogLhNoPost(hosts[i], omega, zmin, zmax, m_th = m_th)
-        p_with_post_view[i] = ComputeLogLhWithPost(hosts[i], event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th)
+        p_no_post_view[i]   = ComputeLogLhNoPost(hosts[i], omega, zmin, zmax, m_th = m_th, M_cutoff = M_cutoff)
+        p_with_post_view[i] = ComputeLogLhWithPost(hosts[i], event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th, M_cutoff = M_cutoff)
         # print("{0}:\nwith:{1}\nno:{2}".format(i, p_with_post_view[i], p_no_post_view[i]))
 
     # Calcolo le likelihood anche per una singola dark galaxy
-    if not (M == 0):
-        p_no_post_dark   = ComputeLogLhNoPost(mockgalaxy, omega, zmin, zmax, m_th = m_th)
-        p_with_post_dark = ComputeLogLhWithPost(mockgalaxy, event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th)
-        # print("dark:\nwith:{1}\nno:{2}".format(i, p_with_post_dark, p_no_post_dark))
+    if not (N_dark_em == 0):
+        p_no_post_dark   = ComputeLogLhNoPost(mockgalaxy, omega, zmin, zmax, m_th = m_th, M_cutoff = M_cutoff)
+        p_with_post_dark = ComputeLogLhWithPost(mockgalaxy, event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th, M_cutoff = M_cutoff)
+        # print("dark:\nwith:{1}\nno:{2}".format(i, p_with_post_dark, p_no_post_dark
+
+    # Calcolo la probabilità di osservare una galassia che non possa emettere e che non riesco a vedere
+    p_no_post_dark_no  = ComputeLogLhNoPost(mockgalaxy, omega, zmin, zmax, m_th = m_th, M_cutoff = M_cutoff, emission_flag = 0.)
+
+
     # Calcolo i termini che andranno sommati tra loro (logaritmi)
-    cdef np.ndarray[double, ndim=1, mode="c"] addends = np.zeros(N, dtype=np.float64)
+    cdef np.ndarray[double, ndim=1, mode="c"] addends = np.zeros(N_bright, dtype=np.float64)
     cdef double[::1] addends_view = addends
     cdef double sum = np.sum(p_no_post)
 
-    for i in range(N):
-        addends_view[i] = sum - p_no_post_view[i] + p_with_post_view[i] + M*p_no_post_dark
+    for i in range(N_bright):
+        addends_view[i] = sum - p_no_post_view[i] + p_with_post_view[i] + N_dark_em*p_no_post_dark + N_dark_no*p_no_post_dark_no
     cdef double dark_term = 0.
-    if not (M == 0):
-        dark_term = sum + (M-1)*p_no_post_dark + p_with_post_dark
+    if not (N_dark_em == 0):
+        dark_term = sum + (N_dark_em-1)*p_no_post_dark + p_with_post_dark + N_dark_no*p_no_post_dark_no
 
     # Manca da fare la somma finale
 
     cdef double logL = -INFINITY
-    for i in range(N):
+    for i in range(N_bright):
         logL = log_add(addends_view[i], logL)
 
     if np.isfinite(dark_term):
-        for i in range(M):
+        for i in range(N_dark_em):
             logL = log_add(dark_term, logL)
     return logL
 
@@ -146,7 +173,7 @@ cdef inline double gaussian(double x, double x0, double sigma) nogil:
 cdef double Integrand_dark(double z, CosmologicalParameters omega, double alpha, double Mstar, double Mmin, double Mmax, double CoVol):
     return -(gammainc(alpha+2,SchVar(Mmax, Mstar))-gammainc(alpha+2,SchVar(Mmin, Mstar)))*omega.ComovingVolumeElement(z)/CoVol
 
-cdef double weighting_function(double M, double M_min, double M_cutoff = -0.):
+cdef double weighting_function(double M, double M_min, double M_cutoff = -10.):
     if (M > M_cutoff):
         return 0.
     else:
@@ -154,7 +181,7 @@ cdef double weighting_function(double M, double M_min, double M_cutoff = -0.):
 
 
 cdef double Integrate_Schechter_gaussian(double z_t, double m_i, double sigma_m, double M_min, double M_max, double M_th, CosmologicalParameters omega, object schechter):
-    cdef unsigned int n = 1000
+    cdef unsigned int n = 100
     cdef np.ndarray[double, ndim=1, mode = "c"] M = np.linspace(M_min, M_max, n, dtype = np.float64)
     cdef double[::1] M_view = M
     cdef double dM = (M_max-M_min)/n
@@ -167,7 +194,7 @@ cdef double Integrate_Schechter_gaussian(double z_t, double m_i, double sigma_m,
     return I
 
 cdef double Integrate_Schechter(double M_max, double M_min, double M_th, object schechter):
-    cdef unsigned int n = 1000
+    cdef unsigned int n = 100
     cdef np.ndarray[double, ndim=1, mode = "c"] M = np.linspace(M_min, M_max, n, dtype = np.float64)
     cdef double[::1] M_view = M
     cdef double dM = (M_max-M_min)/n
@@ -177,8 +204,8 @@ cdef double Integrate_Schechter(double M_max, double M_min, double M_th, object 
             I += schechter(M_view[i])*dM
     return I
 
-cdef double Integrate_Schechter_gaussian_weighted(double z_t, double m_i, double sigma_m, double M_min, double M_max, double M_th, CosmologicalParameters omega, object schechter):
-    cdef unsigned int n = 1000
+cdef double Integrate_Schechter_gaussian_weighted(double z_t, double m_i, double sigma_m, double M_min, double M_max, double M_th, CosmologicalParameters omega, object schechter, double M_cutoff):
+    cdef unsigned int n = 100
     cdef np.ndarray[double, ndim=1, mode = "c"] M = np.linspace(M_min, M_max, n, dtype = np.float64)
     cdef double[::1] M_view = M
     cdef double dM = (M_max-M_min)/n
@@ -187,18 +214,29 @@ cdef double Integrate_Schechter_gaussian_weighted(double z_t, double m_i, double
     for i in range(n):
         if (M_view[i] < M_th):
             m_app = appM(z_t, M_view[i], omega)
-            I += weighting_function(M_view[i], M_min)*gaussian(m_i, m_app, sigma_m)*schechter(M_view[i])*dM*dM
+            I += weighting_function(M_view[i], M_min, M_cutoff)*gaussian(m_i, m_app, sigma_m)*schechter(M_view[i])*dM*dM
     return I
 
-cdef double Integrate_Schechter_weighted(double M_max, double M_min, double M_th, object schechter):
-    cdef unsigned int n = 1000
+cdef double Integrate_Schechter_weighted(double M_max, double M_min, double M_th, object schechter, double M_cutoff):
+    cdef unsigned int n = 100
     cdef np.ndarray[double, ndim=1, mode = "c"] M = np.linspace(M_min, M_max, n, dtype = np.float64)
     cdef double[::1] M_view = M
     cdef double dM = (M_max-M_min)/n
     cdef double I = 0.0
     for i in range(n):
         if (M_view[i] > M_th):
-            I += weighting_function(M_view[i], M_min)*schechter(M_view[i])*dM
+            I += weighting_function(M_view[i], M_min, M_cutoff)*schechter(M_view[i])*dM
+    return I
+
+cdef double Integrate_Schechter_noemission_dark(double M_max, double M_min, double M_th, object Schechter, double M_cutoff):
+    cdef unsigned int n = 100
+    cdef np.ndarray[double, ndim=1, mode = 'c'] M = np.linspace(M_min, M_max, n, dtype = np.float64)
+    cdef double[::1] M_view = M
+    cdef double dM = (M_max - M_min)/n
+    cdef double I = 0.0
+    for i in range(n):
+        if (M_view[i] > M_th) and (M_view[i] > M_cutoff):
+            I += Schechter(M_view[i])*dM
     return I
 
 @cython.boundscheck(False)
@@ -206,7 +244,7 @@ cdef double Integrate_Schechter_weighted(double M_max, double M_min, double M_th
 @cython.nonecheck(False)
 @cython.cdivision(True)
 
-cpdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameters omega, double zmin, double zmax, double ramin, double ramax, double decmin, double decmax, double m_th = 18., double M_max = 0, double M_min = -23):
+cpdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameters omega, double zmin, double zmax, double ramin, double ramax, double decmin, double decmax, double M_cutoff, double m_th = 18., double M_max = 0, double M_min = -23):
 
     cdef unsigned int i, n = 100
     cdef double mag_int
@@ -239,7 +277,7 @@ cpdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParamete
             prop_motion = 0.
             Mth = absM(z_view[i], m_th, omega)
             LD_i = omega.LuminosityDistance(z_view[i])
-            int_magnitude = Integrate_Schechter_gaussian_weighted(z_view[i], gal.app_magnitude, gal.dapp_magnitude, M_min, M_max, Mth, omega, Schechter)
+            int_magnitude = Integrate_Schechter_gaussian_weighted(z_view[i], gal.app_magnitude, gal.dapp_magnitude, M_min, M_max, Mth, omega, Schechter, M_cutoff)
             exp_post = exp(event.logP([LD_i,gal.DEC,gal.RA]))*LD_i**2.#/norm_post
             if(z_view[j] > 0.008):
                 rel_sigma = 0.1*z_view[i]
@@ -259,9 +297,9 @@ cpdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParamete
         for i in range(n):
             Mth = absM(z_view[i], m_th, omega)
             exp_post = exp(event.marg_logP(omega.LuminosityDistance(z_view[i])))
-            int_magnitude = Integrate_Schechter_weighted(M_max, M_min, Mth, Schechter)
+            int_magnitude = Integrate_Schechter_weighted(M_max, M_min, Mth, Schechter, M_cutoff)
             LD_i = omega.LuminosityDistance(z_view[i])
-            #exp_post = gaussian(LD_i, 40.0,5)*omega.LuminosityDistance(z_view[i])**2.
+            # exp_post = gaussian(LD_i, 40.,5)*omega.LuminosityDistance(z_view[i])**2.
             I += dz*exp_post*int_magnitude*omega.ComovingVolumeElement(z_view[i])/CoVol
             # print('int_magnitude_dark: {0}'.format(int_magnitude))
         #     print('exp_post: {0}'.format(exp_post))
@@ -272,7 +310,7 @@ cpdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParamete
 @cython.wraparound(False)
 @cython.nonecheck(False)
 @cython.cdivision(True)
-cpdef double ComputeLogLhNoPost(Galaxy gal, CosmologicalParameters omega, double zmin, double zmax, double m_th = 18, double M_max = 0, double M_min = -23):
+cpdef double ComputeLogLhNoPost(Galaxy gal, CosmologicalParameters omega, double zmin, double zmax, M_cutoff, double m_th = 18, double M_max = 0, double M_min = -23, emission_flag = 1):
     '''
     Calcolo probabilità di osservare la galassia considerata.
     Si considera, nel caso di galassia osservata, la densità di probabilità dovuta alla misura (gaussiane con errore da determinarsi)
@@ -305,7 +343,7 @@ cpdef double ComputeLogLhNoPost(Galaxy gal, CosmologicalParameters omega, double
         for i in range(n):
             prop_motion = 0.
             Mth = absM(z_view[i], m_th, omega)
-            int_magnitude = Integrate_Schechter_gaussian(z_view[i], gal.app_magnitude, gal.dapp_magnitude, M_min, M_max, Mth, omega, Schechter)
+            int_magnitude = Integrate_Schechter_gaussian_weighted(z_view[i], gal.app_magnitude, gal.dapp_magnitude, M_min, M_max, Mth, omega, Schechter, M_cutoff)
             if(z_view[j] > 0.008):
                 rel_sigma = 0.1*z_view[i]
             else:
@@ -318,7 +356,12 @@ cpdef double ComputeLogLhNoPost(Galaxy gal, CosmologicalParameters omega, double
         return log(I)
 
     else:
-        for i in range(n):
-            Mth = absM(z_view[i], m_th, omega)
-            I += dz*Integrate_Schechter(M_max, M_min, Mth, Schechter)*omega.ComovingVolumeElement(z_view[i])/CoVol
+        if emission_flag:
+            for i in range(n):
+                Mth = absM(z_view[i], m_th, omega)
+                I += dz*Integrate_Schechter_weighted(M_max, M_min, Mth, Schechter, M_cutoff)*omega.ComovingVolumeElement(z_view[i])/CoVol
+        else:
+            for i in range(n):
+                Mth = absM(z_view[i], m_th, omega)
+                I += dz*Integrate_Schechter_noemission_dark(M_max, M_min, Mth, Schechter, M_cutoff)*omega.ComovingVolumeElement(z_view[i])/CoVol
         return log(I)
