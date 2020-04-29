@@ -155,7 +155,7 @@ class Event_CBC(object):
         galaxy must be a list with [LD, dec, ra]
         '''
         try:
-            logpost = logPosterior((self.density_model, np.array(galaxy)))-2.*np.log(galaxy[0])+np.log(self.LDmax**3-self.LDmin**3)-np.log(3)+np.log(4*np.pi)
+            logpost = logPosterior((self.density_model, np.array(galaxy)))#-2.*np.log(galaxy[0])+np.log(self.LDmax**3-self.LDmin**3)-np.log(3)
         except:
             logpost = -np.inf
         return logpost
@@ -163,12 +163,12 @@ class Event_CBC(object):
     def marg_logP(self, LD):
             try:
                 marg_post    = self.interpolant(LD)
-                logpost = np.log(marg_post)-2.*np.log(LD)+np.log(self.LDmax**3-self.LDmin**3)-np.log(3)
+                logpost = np.log(marg_post)#-2.*np.log(LD)+np.log(self.LDmax**3-self.LDmin**3)-np.log(3)
             except:
                 logpost = -np.inf
             return logpost
 
-def read_TEST_event(errors = None, omega = None, input_folder = None, catalog_data = None, N_ev_max = None, rel_z_error = 0.1, n_tot = None):
+def read_TEST_event(errors = None, omega = None, input_folder = None, catalog_data = None, N_ev_max = None, rel_z_error = 0.01, n_tot = None):
     '''
     Classe di evento costruita per finalità di test. Le distribuzioni di probabilità sono gaussiane e centrate su una galassia a scelta.
     '''

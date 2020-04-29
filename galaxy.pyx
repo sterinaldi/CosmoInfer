@@ -11,7 +11,7 @@ cdef class Galaxy:
                        double declination,
                        double redshift,
                        bint is_detected,
-                       double z_error = 0.1,
+                       double z_error = 0.01,
                        double abs_magnitude=INFINITY,
                        double app_magnitude=INFINITY,
                        double dapp_magnitude=INFINITY,
