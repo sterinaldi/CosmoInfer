@@ -135,7 +135,7 @@ class Event_CBC(object):
 
         marginalized_post = np.genfromtxt(distance_file, names = True)
         self.interpolant = interp1d(marginalized_post['dist'], marginalized_post['post'], 'linear')
-        self.EMcp = EMcp
+
 
 
         if n_tot is not None:
@@ -192,7 +192,7 @@ def read_TEST_event(errors = None, omega = None, input_folder = None, catalog_da
         event_file.close()
     return np.array(events)
 
-def read_CBC_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.6675):#,gal_density = 0.17):#
+def read_CBC_event(input_folder, emcp = 0, n_tot = None,gal_density = 0.17):# gal_density = 0.6675):p
     all_files     = os.listdir(input_folder)
     event_folders = []
     for file in all_files:
