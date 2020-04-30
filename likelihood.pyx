@@ -53,9 +53,11 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     cdef double p_with_post_dark = 0.
     cdef double zmin, zmax, ramin, ramax, decmin, decmax
     cdef double M_cutoff = -12.
+    cdef object schechter
+    cdef double alpha, Mstar
+    cdef int N_em
 
     cdef Galaxy mockgalaxy = Galaxy(-1, 0,0,0,False, weight = 1./Ntot)
-
     cdef np.ndarray[double, ndim=1, mode="c"] p_with_post = np.zeros(N, dtype=np.float64)
     cdef double[::1] p_with_post_view = p_with_post
     cdef np.ndarray[double, ndim=1, mode="c"] p_no_post = np.zeros(N, dtype=np.float64)
@@ -70,6 +72,10 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     decmin = event.decmin
     decmax = event.decmax
 
+    schechter, alpha, Mstar = SchechterMagFunction(-25., -0, h = 0.7)
+
+    N_em = int(Integrate_Schechter(M_cutoff, -25., -26., schechter)*Ntot)
+    M = N_em-N
     print(M)
     if Ntot <= N:
         # If there are more galaxies than expected, set to 0 the number of unseen objects.
@@ -80,13 +86,13 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
         # quantità rilevanti descritte in CosmoInfer.
         p_no_post_view[i]   = ComputeLogLhNoPost(hosts[i], omega, zmin, zmax, m_th = m_th, M_max = M_cutoff)
         p_with_post_view[i] = ComputeLogLhWithPost(hosts[i], event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th, M_max = M_cutoff)
-        print("{0}:\nwith:{1}\nno:{2}".format(i, p_with_post_view[i], p_no_post_view[i]))
+        # print("{0}:\nwith:{1}\nno:{2}".format(i, p_with_post_view[i], p_no_post_view[i]))
 
     # Calcolo le likelihood anche per una singola dark galaxy
     if not (M == 0):
         p_no_post_dark   = ComputeLogLhNoPost(mockgalaxy, omega, zmin, zmax, m_th = m_th, M_max = M_cutoff)
         p_with_post_dark = ComputeLogLhWithPost(mockgalaxy, event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th, M_max = M_cutoff)
-        print("dark:\nwith:{1}\nno:{2}".format(i, p_with_post_dark, p_no_post_dark))
+        # print("dark:\nwith:{1}\nno:{2}".format(i, p_with_post_dark, p_no_post_dark))
     # Calcolo i termini che andranno sommati tra loro (logaritmi)
     cdef np.ndarray[double, ndim=1, mode="c"] addends = np.zeros(N, dtype=np.float64)
     cdef double[::1] addends_view = addends
@@ -94,11 +100,9 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
 
     for i in range(N):
         addends_view[i] = sum - p_no_post_view[i] + p_with_post_view[i] + M*p_no_post_dark
-        print('addend {0} = {1}'.format(i, addends_view[i]))
     cdef double dark_term = 0.
     if not (M == 0):
         dark_term = sum + (M-1)*p_no_post_dark + p_with_post_dark
-        print('dark term = {0}'.format(dark_term))
 
     # Manca da fare la somma finale
 
