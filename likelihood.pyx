@@ -52,6 +52,7 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     cdef double p_no_post_dark = 0.
     cdef double p_with_post_dark = 0.
     cdef double zmin, zmax, ramin, ramax, decmin, decmax
+    cdef double M_cutoff = -12.
 
     cdef Galaxy mockgalaxy = Galaxy(-1, 0,0,0,False, weight = 1./Ntot)
 
@@ -77,14 +78,14 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     for i in range(N):
         # Voglio calcolare, per ogni galassia, le due
         # quantità rilevanti descritte in CosmoInfer.
-        p_no_post_view[i]   = ComputeLogLhNoPost(hosts[i], omega, zmin, zmax, m_th = m_th)
-        p_with_post_view[i] = ComputeLogLhWithPost(hosts[i], event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th)
+        p_no_post_view[i]   = ComputeLogLhNoPost(hosts[i], omega, zmin, zmax, m_th = m_th, M_max = M_cutoff)
+        p_with_post_view[i] = ComputeLogLhWithPost(hosts[i], event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th, M_max = M_cutoff)
         print("{0}:\nwith:{1}\nno:{2}".format(i, p_with_post_view[i], p_no_post_view[i]))
 
     # Calcolo le likelihood anche per una singola dark galaxy
     if not (M == 0):
-        p_no_post_dark   = ComputeLogLhNoPost(mockgalaxy, omega, zmin, zmax, m_th = m_th)
-        p_with_post_dark = ComputeLogLhWithPost(mockgalaxy, event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th)
+        p_no_post_dark   = ComputeLogLhNoPost(mockgalaxy, omega, zmin, zmax, m_th = m_th, M_max = M_cutoff)
+        p_with_post_dark = ComputeLogLhWithPost(mockgalaxy, event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th, M_max = M_cutoff)
         print("dark:\nwith:{1}\nno:{2}".format(i, p_with_post_dark, p_no_post_dark))
     # Calcolo i termini che andranno sommati tra loro (logaritmi)
     cdef np.ndarray[double, ndim=1, mode="c"] addends = np.zeros(N, dtype=np.float64)
@@ -158,20 +159,20 @@ cdef double weighting_function(double M, double M_min, double M_cutoff = -10.):
 
 
 cdef double Integrate_Schechter_gaussian(double z_t, double m_i, double sigma_m, double M_min, double M_max, double M_th, CosmologicalParameters omega, object schechter):
-    cdef unsigned int n = 1000
+    cdef unsigned int n = 100
     cdef np.ndarray[double, ndim=1, mode = "c"] M = np.linspace(M_min, M_max, n, dtype = np.float64)
     cdef double[::1] M_view = M
     cdef double dM = (M_max-M_min)/n
     cdef double I = 0.0
-    cdef double M_ass
+    cdef double M_app
     for i in range(n):
         if (M_view[i] < M_th):
-            M_ass = absM(z_t, m_i, omega)
-            I += gaussian(M_ass, M_view[i], sigma_m)*schechter(M_view[i])*dM
+            M_app = appM(z_t, M_view[i], omega)
+            I += gaussian(m_i, M_app, sigma_m)*dM#*schechter(M_view[i])*dM
     return I
 
 cdef double Integrate_Schechter(double M_max, double M_min, double M_th, object schechter):
-    cdef unsigned int n = 1000
+    cdef unsigned int n = 100
     cdef np.ndarray[double, ndim=1, mode = "c"] M = np.linspace(M_min, M_max, n, dtype = np.float64)
     cdef double[::1] M_view = M
     cdef double dM = (M_max-M_min)/n
@@ -226,50 +227,45 @@ cpdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParamete
     cdef object Schechter
     cdef double alpha, Mstar, Mth
     cdef double exp_post, prop_motion, rel_sigma, norm_post = 0.
-
+    cdef double CoVolEl
     cdef double int_magnitude
 
     Schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, h = omega.h) # Modo semplice per tirare fuori i parametri di Schechter
     CoVol = (omega.ComovingVolume(zmax)-omega.ComovingVolume(zmin))
 
     if gal.is_detected:
-        LD = np.linspace(10,50,100)
-        dLD = LD[2]-LD[1]
+        # LD = np.linspace(10,50,100)
+        # dLD = LD[2]-LD[1]
+        # for i in range(n):
+        #     exp_post = exp(event.logP([LD[i],gal.DEC,gal.RA]))
+        #     norm_post += LD[i]*dLD
         for i in range(n):
-            exp_post = exp(event.logP([LD[i],gal.DEC,gal.RA]))
-            norm_post += LD[i]*dLD
-
-        for i in range(n):
-            prop_motion = 0.
             Mth = absM(z_view[i], m_th, omega)
             LD_i = omega.LuminosityDistance(z_view[i])
-            # int_magnitude = Integrate_Schechter_gaussian_weighted(z_view[i], gal.app_magnitude, gal.dapp_magnitude, M_min, M_max, Mth, omega, Schechter)
-            int_magnitude = 1.
-            exp_post = exp(event.logP([LD_i,gal.DEC,gal.RA]))#*LD_i**2.#/norm_post
+            exp_post = exp(event.logP([LD_i,gal.DEC,gal.RA]))
             if(z_view[i] > 0.008):
                 rel_sigma = 0.1*z_view[i]
             else:
                 rel_sigma = 0.2*z_view[i]
-            for j in range(n):
-                # integrale in z_true
-                prop_motion += gaussian(z_view[j],z_view[i], rel_sigma)*gaussian(gal.z,z_view[j], gal.dz)*dz
-            #exp_post = exp(event.marg_logP(LD_i))*norm_post
-            #exp_post = gaussian(LD_i, 40.,5)*(LD_i**2.)*norm_post#*exp(event.logP([40.,gal.DEC,gal.RA]))/norm_post
-            I += dz*exp_post*int_magnitude*prop_motion*omega.ComovingVolumeElement(z_view[i])/(CoVol)
+            prop_motion = gaussian(gal.z,z_view[i], rel_sigma)
+            CoVolEl = omega.ComovingVolumeElement(z_view[i])/(CoVol)
+            int_magnitude = Integrate_Schechter_gaussian(z_view[i], gal.app_magnitude, gal.dapp_magnitude, M_min, M_max, Mth, omega, Schechter)
+            I += dz*exp_post*prop_motion*CoVolEl*int_magnitude*prop_motion*CoVolEl
             # print('int_magnitude: {0}'.format(int_magnitude))
-            # print('exp_post: {0}'.format(exp_post*prop_motion*int_magnitude))
+            # print('exp_post: {0}'.format(event.logP([LD_i,gal.DEC,gal.RA])), exp(event.logP([LD_i,gal.DEC,gal.RA])), exp_post)
             # print('prop_motion: {0}'.format(prop_motion))
         # print('log int {0}: {1}'.format(gal.ID, log(I*gal.weight)))
         return log(I*gal.weight)
     else:
         for i in range(n):
             Mth = absM(z_view[i], m_th, omega)
-            exp_post = exp(event.marg_logP(omega.LuminosityDistance(z_view[i])))/(4*np.pi)
-            int_magnitude = Integrate_Schechter_weighted(M_max, M_min, Mth, Schechter)
-            # int_magnitude = 1.
             LD_i = omega.LuminosityDistance(z_view[i])
-            # exp_post = gaussian(LD_i, 40.0,5)*omega.LuminosityDistance(z_view[i])**2.
-            I += dz*exp_post*int_magnitude*omega.ComovingVolumeElement(z_view[i])/CoVol
+            exp_post = exp(event.marg_logP(LD_i))
+            int_magnitude = Integrate_Schechter(M_max, M_min, Mth, Schechter)
+            prop_motion = 1./(zmax-zmin)
+            CoVolEl = omega.ComovingVolumeElement(z_view[i])/(CoVol)
+
+            I += dz*exp_post*prop_motion*CoVolEl*int_magnitude*prop_motion*CoVolEl*(4*np.pi)
             # print('int_magnitude_dark: {0}'.format(int_magnitude))
         #     print('exp_post: {0}'.format(exp_post))
         # print('log int dark: {0}'.format(log(I*gal.weight)))
@@ -303,25 +299,22 @@ cpdef double ComputeLogLhNoPost(Galaxy gal, CosmologicalParameters omega, double
     cdef object Schechter
     cdef double alpha, Mstar, CoVol, Mth
 
-    cdef double int_magnitude, prop_motion
+    cdef double int_magnitude, prop_motion, CoVolEl
 
     Schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, h = omega.h) # Modo semplice per tirare fuori i parametri di Schechter
     CoVol = (omega.ComovingVolume(zmax)-omega.ComovingVolume(zmin))
 
     if gal.is_detected:
         for i in range(n):
-            prop_motion = 0.
             Mth = absM(z_view[i], m_th, omega)
-            # int_magnitude = Integrate_Schechter_gaussian_weighted(z_view[i], gal.app_magnitude, gal.dapp_magnitude, M_min, M_max, Mth, omega, Schechter)
-            int_magnitude = 1.
             if(z_view[i] > 0.008):
                 rel_sigma = 0.1*z_view[i]
             else:
                 rel_sigma = 0.2*z_view[i]
-            for j in range(n):
-                # integrale in z_true
-                prop_motion += gaussian(z_view[j],z_view[i], rel_sigma)*gaussian(gal.z,z_view[j], gal.dz)*dz
-            I += dz*int_magnitude*prop_motion*omega.ComovingVolumeElement(z_view[i])/CoVol
+            prop_motion = gaussian(gal.z,z_view[i], rel_sigma)
+            CoVolEl = omega.ComovingVolumeElement(z_view[i])/(CoVol)
+            int_magnitude = Integrate_Schechter_gaussian(z_view[i], gal.app_magnitude, gal.dapp_magnitude, M_min, M_max, Mth, omega, Schechter)
+            I += dz*int_magnitude*prop_motion*CoVolEl
             # print(gaussian(gal.z, z_view[i], gal.dz)*omega.ComovingVolumeElement(z_view[i])/CoVol)
         # print('no em {0} : {1}'.format(gal.ID, log(I)))
         return log(I)
@@ -329,8 +322,9 @@ cpdef double ComputeLogLhNoPost(Galaxy gal, CosmologicalParameters omega, double
     else:
         for i in range(n):
             Mth = absM(z_view[i], m_th, omega)
-            int_magnitude = Integrate_Schechter_weighted(M_max, M_min, Mth, Schechter)
-            # int_magnitude = 1.
-            I += dz*int_magnitude*omega.ComovingVolumeElement(z_view[i])/CoVol
-        print('no em dark : {0}'.format(log(I)))
+            LD_i = omega.LuminosityDistance(z_view[i])
+            int_magnitude = Integrate_Schechter(M_max, M_min, Mth, Schechter)
+            prop_motion = 1./(zmax-zmin)
+            CoVolEl = omega.ComovingVolumeElement(z_view[i])/(CoVol)
+            I += dz*int_magnitude*prop_motion*CoVolEl*(4*np.pi)
         return log(I)

@@ -155,7 +155,7 @@ class Event_CBC(object):
         galaxy must be a list with [LD, dec, ra]
         '''
         try:
-            logpost = logPosterior((self.density_model, np.array(galaxy)))#-2.*np.log(galaxy[0])+np.log(self.LDmax**3-self.LDmin**3)-np.log(3)
+            logpost = logPosterior((self.density_model, np.array(galaxy)))-2.*np.log(galaxy[0])+np.log(self.LDmax**3-self.LDmin**3)-np.log(3)
         except:
             logpost = -np.inf
         return logpost
@@ -163,7 +163,7 @@ class Event_CBC(object):
     def marg_logP(self, LD):
             try:
                 marg_post    = self.interpolant(LD)
-                logpost = np.log(marg_post)#-2.*np.log(LD)+np.log(self.LDmax**3-self.LDmin**3)-np.log(3)
+                logpost = np.log(marg_post)-2.*np.log(LD)+np.log(self.LDmax**3-self.LDmin**3)-np.log(3)
             except:
                 logpost = -np.inf
             return logpost
@@ -192,7 +192,7 @@ def read_TEST_event(errors = None, omega = None, input_folder = None, catalog_da
         event_file.close()
     return np.array(events)
 
-def read_CBC_event(input_folder, emcp = 0, n_tot = None,gal_density = 0.17):# gal_density = 0.6675):p
+def read_CBC_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.15): #gal_density = 0.6675):#
     all_files     = os.listdir(input_folder)
     event_folders = []
     for file in all_files:
