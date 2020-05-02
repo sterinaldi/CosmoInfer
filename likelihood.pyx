@@ -24,7 +24,7 @@ cdef inline double linear_density(double x, double a, double b): return a+log(x)
 @cython.nonecheck(False)
 @cython.cdivision(True)
 
-cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalParameters omega, double m_th, int Ntot):
+cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalParameters omega, double m_th, int Ntot, int EMcp = 0):
     """
     Likelihood function for a single GW event.
     Loops over all possible hosts to accumulate the likelihood
@@ -51,8 +51,9 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     cdef double logL_prod = 0.
     cdef double p_no_post_dark = 0.
     cdef double p_with_post_dark = 0.
+    cdef double p_noemission
     cdef double zmin, zmax, ramin, ramax, decmin, decmax
-    cdef double M_cutoff = -12. #- 5*np.log10(omega.h)
+    cdef double M_cutoff = -14. #- 5*np.log10(omega.h)
     cdef object schechter
     cdef double alpha, Mstar
     cdef int N_em
@@ -73,12 +74,14 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     decmin = event.decmin
     decmax = event.decmax
 
-    schechter, alpha, Mstar = SchechterMagFunction(-23., 0., h = omega.h)#0.7)
-
+    schechter, alpha, Mstar = SchechterMagFunction(-23., 0., h = omega.h)
     N_em = int(Integrate_Schechter(M_cutoff, -25., -26., schechter, 0.)*Ntot)
     M = N_em-N
-    N_noem = Ntot - N_em
-    print(M)
+
+    if EMcp:
+        N_em   = 1
+        M      = 0
+        N_noem = 0
     if Ntot <= N:
         # If there are more galaxies than expected, set to 0 the number of unseen objects.
         # print('WARNING: M = 0')
@@ -94,7 +97,8 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     if not (M == 0):
         p_no_post_dark   = ComputeLogLhNoPost(mockgalaxy, omega, zmin, zmax, m_th = m_th, M_cutoff = M_cutoff)
         p_with_post_dark = ComputeLogLhWithPost(mockgalaxy, event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th, M_cutoff = M_cutoff)
-    p_noemission     = ComputeLogLhNoEmission(mockgalaxy, omega, zmin, zmax, m_th = m_th, M_cutoff = M_cutoff)
+    if not (N_noem == 0):
+        p_noemission     = ComputeLogLhNoEmission(mockgalaxy, omega, zmin, zmax, m_th = m_th, M_cutoff = M_cutoff)
     # print("dark:\nwith:{1}\nno:{2}".format(i, p_with_post_dark, p_no_post_dark))
     # Calcolo i termini che andranno sommati tra loro (logaritmi)
     cdef np.ndarray[double, ndim=1, mode="c"] addends = np.zeros(N, dtype=np.float64)
@@ -261,6 +265,7 @@ cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameter
             Mth = absM(z_view[i], m_th, omega)
             LD_i = omega.LuminosityDistance(z_view[i])
             exp_post = exp(event.logP([LD_i,gal.DEC,gal.RA]))
+            # exp_post = gaussian(LD_i, 40.,5.)
             if(z_view[i] > 0.008):
                 rel_sigma = 0.1*z_view[i]
             else:

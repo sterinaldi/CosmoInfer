@@ -192,7 +192,7 @@ def read_TEST_event(errors = None, omega = None, input_folder = None, catalog_da
         event_file.close()
     return np.array(events)
 
-def read_CBC_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.6675): #gal_density = 0.15):#
+def read_CBC_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.6675):
     all_files     = os.listdir(input_folder)
     event_folders = []
     for file in all_files:
