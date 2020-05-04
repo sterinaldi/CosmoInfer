@@ -53,7 +53,7 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     cdef double p_with_post_dark = 0.
     cdef double p_noemission
     cdef double zmin, zmax, ramin, ramax, decmin, decmax
-    cdef double M_cutoff = -14. #- 5*np.log10(omega.h)
+    cdef double M_cutoff = -12. #- 5*np.log10(omega.h)
     cdef object schechter
     cdef double alpha, Mstar
     cdef int N_em
@@ -77,6 +77,8 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     schechter, alpha, Mstar = SchechterMagFunction(-23., 0., h = omega.h)
     N_em = int(Integrate_Schechter(M_cutoff, -25., -26., schechter, 0.)*Ntot)
     M = N_em-N
+    N_noem = Ntot - N_em
+    print(M)
 
     if EMcp:
         N_em   = 1
