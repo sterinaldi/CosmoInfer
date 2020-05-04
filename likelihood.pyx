@@ -24,7 +24,7 @@ cdef inline double linear_density(double x, double a, double b): return a+log(x)
 @cython.nonecheck(False)
 @cython.cdivision(True)
 
-cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalParameters omega, double m_th, int Ntot, int EMcp = 0):
+cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalParameters omega, double m_th, int Ntot, int EMcp = 0, object completeness_file = None):
     """
     Likelihood function for a single GW event.
     Loops over all possible hosts to accumulate the likelihood
@@ -58,6 +58,9 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     cdef double alpha, Mstar
     cdef int N_em
     cdef int N_noem
+    cdef object file_comp
+
+    #test-upsidedown
 
     cdef Galaxy mockgalaxy = Galaxy(-1, 0,0,0,False, weight = 1./Ntot)
     cdef np.ndarray[double, ndim=1, mode="c"] p_with_post = np.zeros(N, dtype=np.float64)
@@ -78,16 +81,20 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     N_em = int(Integrate_Schechter(M_cutoff, -25., -26., schechter, 0.)*Ntot)
     M = N_em-N
     N_noem = Ntot - N_em
-    print(M)
-
+    if completeness_file is not None:
+        file_comp = open(completeness_file, 'a')
+        file_comp.write('\n{0}\t{1}\t{2}\t{3}'.format(omega.h, N_em, N, M))
+        file_comp.close()
     if EMcp:
         N_em   = 1
         M      = 0
         N_noem = 0
-    if Ntot <= N:
+    if N_em <= N:
         # If there are more galaxies than expected, set to 0 the number of unseen objects.
         # print('WARNING: M = 0')
         M = 0
+        N_em = N
+        N_noem = Ntot - N_em
     for i in range(N):
         # Voglio calcolare, per ogni galassia, le due
         # quantità rilevanti descritte in CosmoInfer.
