@@ -24,6 +24,7 @@ import math
 from schechter import *
 import random as rd
 import lal
+import os
 import sys
 
 def appM(z, M, omega):
@@ -40,11 +41,13 @@ if __name__ == '__main__':
     M_min    = -23.
     M_cutoff = -12
     Schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, omega.h)
-    output = './mockcatalog/'
-    numberdensity = 0.0066
+    output = 'mockcatalog/'
+    if not os.path.exists(output):
+        os.mkdir(output)
+    numberdensity = 0.066
 
     z_min = 0.002
-    z_max = 0.1
+    z_max = 0.04
     dCoVolMax = lal.ComovingVolumeElement(z_max,omega)
     pM_max    = Schechter(M_max)
     CoVol = lal.ComovingVolume(omega, z_max) - lal.ComovingVolume(omega, z_min)
@@ -99,23 +102,24 @@ if __name__ == '__main__':
         appB.append(appM(z_c, B, omega))
         host.append(0)
 
-    for i in range(250):
-        index = rd.randint(0,N_tot-1)
-        if absB[index] < M_cutoff:
-            host[index] = 1
-            ID_h.append(ID[index])
-            ra_h.append(ra[index])
-            dec_h.append(dec[index])
-            z_cosmo_h.append(z_cosmo[index])
-            z_h.append(z[index])
-            appB_h.append(appB[index])
-            absB_h.append(absB[index])
-            dB_h.append(dB[index])
-            DL_h.append(DL[index])
-            host_h.append(host[index])
+    for i in range(10):
+        while 1:
+            index = rd.randint(0,N_tot-1)
+            if absB[index] < M_cutoff:
+                host[index] = 1
+                ID_h.append(ID[index])
+                ra_h.append(ra[index])
+                dec_h.append(dec[index])
+                z_cosmo_h.append(z_cosmo[index])
+                z_h.append(z[index])
+                appB_h.append(appB[index])
+                absB_h.append(absB[index])
+                dB_h.append(dB[index])
+                DL_h.append(DL[index])
+                host_h.append(host[index])
+                break
 
-
-    header = 'ID\tra\t\tdec\tz\t\tz_cosmo\t\tDL\t\tabsB\t\tappB\t\tdB\t\thost'
+    header = 'ID\tra\t\tdec\t\tz\t\tz_cosmo\t\tDL\t\tabsB\t\tappB\t\tdB\t\thost'
     fmt = '%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%d'
     np.savetxt(output+'mockcatalog.txt', np.array([ID, ra, dec, z, z_cosmo, DL, absB, appB, dB, host]).T, fmt = fmt, header = header)
     np.savetxt(output+'hosts.txt', np.array([ID_h, ra_h, dec_h, z_h, z_cosmo_h, DL_h, absB_h, appB_h, dB_h, host_h]).T, fmt = fmt, header = header)
