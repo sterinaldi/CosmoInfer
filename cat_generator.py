@@ -82,7 +82,7 @@ if __name__ == '__main__':
         sys.stdout.flush()
         ID.append(i)
         ra.append(rd.uniform(0,2*np.pi))
-        dec.append(rd.uniform(-np.pi,np.pi))
+        dec.append(rd.uniform(-np.pi/2.,np.pi/2.))
         while 1:
             z_temp = rd.uniform(z_min,z_max)
             if rd.random()*dCoVolMax < lal.ComovingVolumeElement(z_temp,omega):

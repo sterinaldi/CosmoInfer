@@ -33,7 +33,7 @@ omegamin = lal.CreateCosmologicalParameters(0.3,0.3,0.7,-1,0,0)
 omegamax = lal.CreateCosmologicalParameters(2,0.3,0.7,-1,0,0)
 
 
-m_th  = 99.
+m_th  = 18.
 
 counter = 1
 
@@ -67,11 +67,13 @@ for gal in hosts:
     zmin = RedshiftCalculation(LD_min, omegamin)
     zmax = RedshiftCalculation(LD_max, omegamax)
 
-    np.savetxt(folder+'confidence_region.txt', np.column_stack([ra_min,ra_max,dec_min,dec_max,LD_min,LD_max,area*360*180,volume]), fmt = '%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f', header = 'ra_min\tra_max\tdec_min\tdec_max\tLD_min\tLD_max\tarea\tvolume')
+    np.savetxt(folder+'confidence_region.txt', np.column_stack([ra_min,ra_max,dec_min,dec_max,LD_min,LD_max, zmin, zmax, area*360*180,volume]), fmt = '%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f', header = 'ra_min\tra_max\tdec_min\tdec_max\tLD_min\tLD_max\tz_min\tz_max\tarea\tvolume')
 
     ID      = []
     ra      = []
+    ra_rad  = []
     dec     = []
+    dec_rad = []
     z_cosmo = []
     z       = []
     appB    = []
@@ -83,8 +85,10 @@ for gal in hosts:
     for pot_host in full_catalog:
         if (zmin < pot_host['z'] < zmax) and (np.sqrt((pot_host['ra']-ra_w)**2+(pot_host['dec']-dec_w)**2) < dra_w) and (pot_host['B']<m_th):
             ID.append(pot_host['ID'])
-            ra.append(pot_host['ra'])
-            dec.append(pot_host['dec'])
+            ra.append(np.rad2deg(pot_host['ra']))
+            ra_rad.append(pot_host['ra'])
+            dec.append(np.rad2deg(pot_host['dec']))
+            dec_rad.append(pot_host['dec'])
             z_cosmo.append(pot_host['z_cosmo'])
             z.append(pot_host['z'])
             appB.append(pot_host['B'])
@@ -93,7 +97,7 @@ for gal in hosts:
             LD.append(pot_host['DL'])
             host.append(pot_host['host'])
 
-    header = 'ID\tra\t\tdec\t\tz\t\tz_cosmo\t\tLD\t\tB_abs\t\tB\t\tB_err\t\thost'
-    fmt = '%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%d'
-    np.savetxt(folder+'galaxy_0.9.txt', np.array([ID, ra, dec, z, z_cosmo, LD, absB, appB, dB, host]).T, fmt = fmt, header = header)
+    header = 'ID\tra\t\tra_rad\t\tdec\t\tdec_rad\t\tz\t\tz_cosmo\t\tLD\t\tB_abs\t\tB\t\tB_err\t\thost'
+    fmt = '%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%d'
+    np.savetxt(folder+'galaxy_0.9.txt', np.array([ID, ra, ra_rad, dec, dec_rad, z, z_cosmo, LD, absB, appB, dB, host]).T, fmt = fmt, header = header)
     counter += 1

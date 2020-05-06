@@ -42,7 +42,7 @@ usage=""" %prog (options)"""
 
 parser = OptionParser(usage)
 parser.add_option('-d', '--data',        default=None, type='string', metavar='data', help='Galaxy data location')
-parser.add_option('-o', '--out-dir',     default=None, type='string', metavar='DIR', help='Directory for output')
+parser.add_option('-o', '--out',         default=None, type='string', metavar='out', help='Directory for output')
 parser.add_option('-c', '--event-class', default=None, type='string', metavar='event_class', help='Class of the event(s) [MBH, EMRI, sBH]')
 parser.add_option('-e', '--event',       default=None, type='int', metavar='event', help='Event number')
 parser.add_option('-m', '--model',       default='LambdaCDM', type='string', metavar='model', help='Cosmological model to assume for the analysis (default LambdaCDM). Supports LambdaCDM, CLambdaCDM, LambdaCDMDE, and DE.')
@@ -63,37 +63,54 @@ parser.add_option('-a', '--hosts',       default=None, type='int', metavar='host
 parser.add_option('--EMcp',              default=0, type='int', metavar='EMcp', help='Electromagnetic counterpart')
 (opts,args)=parser.parse_args()
 
-em_selection = opts.em_selection
 
 if opts.event_class == 'TEST' or opts.event_class == 'CBC':
     events = readdata.read_event(opts.event_class, input_folder = opts.data, emcp = opts.EMcp, nevmax = opts.nevmax)
 else:
     print('I do not know the class {0}, exit...'.format(opts.event_class))
 
+if opts.out == None:
+    opts.out = opts.data + 'output/'
+    if not os.path.exists(opts.out):
+        os.mkdir(opts.out)
+
 h = np.linspace(0.3,2,100)
+dh = (h.max()-h.min())/len(h)
 # h = [0.7]
-likelihood = []
+evcounter = 0
+lhs = []
 
 for event in events:
         event.zmin = RedshiftCalculation(event.LDmin, cs.CosmologicalParameters(0.3,0.3,0.7,-1,0)) # self.bounds[1][0], 0.7,-1,0))
         event.zmax = RedshiftCalculation(event.LDmax, cs.CosmologicalParameters(1.8,0.3,0.7,-1,0))
-        # event.zmin = 0.003
-        # event.zmax = 0.03
-for hi in h:
-    omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
-    logL = 0.
-    print(hi)
-    for e in events:
-        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 18., Ntot = e.n_tot, completeness_file = opts.data+'completeness_fraction.txt')
-        # logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 18., Ntot = len(e.potential_galaxy_hosts))
-        # logL += lk.logLikelihood_single_event([],e, omega,0.,Ntot = e.n_tot)
-    omega.DestroyCosmologicalParameters()
-    likelihood.append(logL)
 
-likelihood = np.array(likelihood)
+for e in events:
+    I = 0.
+    likelihood = []
+    evcounter += 1
+    for hi in h:
+        omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
+        logL = 0.
+        sys.stdout.write('ev {0} of {1}, h = {2}\r'.format(evcounter, len(events), hi))
+        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 18., Ntot = e.n_tot, completeness_file = opts.out+'completeness_fraction_'+str(e.ID)+'.txt')
+        omega.DestroyCosmologicalParameters()
+        likelihood.append(logL)
+
+    likelihood = np.array(likelihood)
+    likelihood_app = np.exp(likelihood - likelihood.max())
+    for li in likelihood_app:
+        I += li*dh
+    likelihood = likelihood - np.log(I) - likelihood.max()
+    lhs.append(np.array(likelihood))
+
+joint = np.zeros(len(likelihood))
+for like in lhs:
+    joint += like
 
 fig = plt.figure()
-ax = fig.add_subplot(111)
-
-ax.plot(h,likelihood)
+ax1 = fig.add_subplot(211)
+ax2 = fig.add_subplot(212)
+for l in lhs:
+    ax1.plot(h,np.exp(l), linewidth = 0.3)
+ax2.plot(h, np.exp(joint))
 plt.show()

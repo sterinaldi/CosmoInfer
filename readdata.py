@@ -69,6 +69,8 @@ class Event_test(object):
         self.ramax   = self.cl['ra_max']
         self.decmin  = self.cl['dec_min']
         self.decmax  = self.cl['dec_max']
+        self.zmin    = self.cl['z_min']
+        self.zmax    = self.cl['z_max']
 
         self.posterior = np.genfromtxt(event_file, names = True)
 
@@ -186,11 +188,13 @@ def read_TEST_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.066, n
     for file in all_files:
         if not '.' in file and 'event' in file:
             event_folders.append(file)
+    event_folders.sort()
     events = []
     ID = 0.
 
     if nevmax is not None:
         event_folders = event_folders[:nevmax:]
+        print(event_folders)
 
     for evfold in event_folders:
         ID +=1
