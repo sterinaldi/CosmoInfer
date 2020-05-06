@@ -67,7 +67,7 @@ for gal in hosts:
     zmin = RedshiftCalculation(LD_min, omegamin)
     zmax = RedshiftCalculation(LD_max, omegamax)
 
-    np.savetxt(folder+'confident_region.txt', np.column_stack([ra_min,ra_max,dec_min,dec_max,LD_min,LD_max,area*360*180,volume]), fmt = '%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f', header = 'ra_min\tra_max\tdec_min\tdec_max\tLD_min\tLD_max\tarea\tvolume')
+    np.savetxt(folder+'confidence_region.txt', np.column_stack([ra_min,ra_max,dec_min,dec_max,LD_min,LD_max,area*360*180,volume]), fmt = '%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f', header = 'ra_min\tra_max\tdec_min\tdec_max\tLD_min\tLD_max\tarea\tvolume')
 
     ID      = []
     ra      = []
@@ -81,19 +81,19 @@ for gal in hosts:
     host    = []
 
     for pot_host in full_catalog:
-        if (zmin < pot_host['z'] < zmax) and (np.sqrt((pot_host['ra']-ra_w)**2+(pot_host['dec']-dec_w)**2) < dra_w) and (pot_host['appB']<m_th):
+        if (zmin < pot_host['z'] < zmax) and (np.sqrt((pot_host['ra']-ra_w)**2+(pot_host['dec']-dec_w)**2) < dra_w) and (pot_host['B']<m_th):
             ID.append(pot_host['ID'])
             ra.append(pot_host['ra'])
             dec.append(pot_host['dec'])
             z_cosmo.append(pot_host['z_cosmo'])
             z.append(pot_host['z'])
-            appB.append(pot_host['appB'])
-            absB.append(pot_host['absB'])
-            dB.append(pot_host['dB'])
+            appB.append(pot_host['B'])
+            absB.append(pot_host['B_abs'])
+            dB.append(pot_host['B_err'])
             LD.append(pot_host['DL'])
             host.append(pot_host['host'])
 
-    header = 'ID\tra\t\tdec\t\tz\t\tz_cosmo\t\tLD\t\tabsB\t\tappB\t\tdB\t\thost'
+    header = 'ID\tra\t\tdec\t\tz\t\tz_cosmo\t\tLD\t\tB_abs\t\tB\t\tB_err\t\thost'
     fmt = '%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%d'
     np.savetxt(folder+'galaxy_0.9.txt', np.array([ID, ra, dec, z, z_cosmo, LD, absB, appB, dB, host]).T, fmt = fmt, header = header)
     counter += 1
