@@ -102,6 +102,7 @@ for e in events:
         I += li*dh
     likelihood = likelihood - np.log(I) - likelihood.max()
     lhs.append(np.array(likelihood))
+    np.savetxt(opts.out+'likelihood_'+str(e.ID)+'.txt', np.array([h, likelihood]).T, header = 'h\t\tlogL')
 
 joint = np.zeros(len(likelihood))
 for like in lhs:
@@ -111,6 +112,13 @@ fig = plt.figure()
 ax1 = fig.add_subplot(211)
 ax2 = fig.add_subplot(212)
 for l in lhs:
-    ax1.plot(h,np.exp(l), linewidth = 0.3)
-ax2.plot(h, np.exp(joint))
-plt.show()
+    ax1.plot(h*100,np.exp(l), linewidth = 0.3)
+ax1.axvline(70, linewidth = 0.5, color = 'r')
+ax2.plot(h*100, np.exp(joint), label ='Joint posterior')
+ax2.axvline(70, color = 'r')
+ax2.legend(loc=0)
+ax2.set_xlabel('$H_0\ [km\\cdot s^{-1}\\cdot Mpc^{-1}]$')
+ax2.set_ylabel('$p(H_0)$')
+ax1.set_ylabel('$p(H_0)$')
+fig.savefig(opts.out+'h_posterior.pdf', bbox_inches='tight')
+# plt.show()

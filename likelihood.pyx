@@ -68,8 +68,9 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
         N_em   = 1
         M      = 0
         N_noem = 0
-    if Ntot <= N:
+    if N_em <= N:
         M = 0
+        N_noem = Ntot - N
 
     if completeness_file is not None:
         file_comp = open(completeness_file, 'a')
@@ -92,8 +93,9 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     # Calcolo i termini che andranno sommati tra loro (logaritmi)
     cdef np.ndarray[double, ndim=1, mode="c"] addends = np.zeros(N, dtype=np.float64)
     cdef double[::1] addends_view = addends
-    cdef double sum = np.sum(p_no_post)
+    cdef double sum = 0.
 
+    sum = np.sum(p_no_post)
     for i in range(N):
         addends_view[i] = sum - p_no_post_view[i] + p_with_post_view[i] + M*p_no_post_dark + N_noem*p_noemission
     cdef double dark_term = 0.

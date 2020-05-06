@@ -102,7 +102,7 @@ if __name__ == '__main__':
         appB.append(appM(z_c, B, omega))
         host.append(0)
 
-    for i in range(10):
+    for i in range(25):
         while 1:
             index = rd.randint(0,N_tot-1)
             if absB[index] < M_cutoff:

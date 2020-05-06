@@ -48,10 +48,10 @@ for gal in hosts:
     np.savetxt(folder+'host.txt', np.column_stack(list(gal)), fmt=fmt, header = '\t\t'.join(hosts.dtype.names))
     dra_w  = 0.01
     ddec_w = 0.01
-    ra_w   = rd.gauss(gal['ra'], 2*dra_w)
-    dec_w  = rd.gauss(gal['dec'], 2*ddec_w)
+    ra_w   = rd.gauss(gal['ra'], dra_w)
+    dec_w  = rd.gauss(gal['dec'], ddec_w)
     dLD_w  = rd.uniform(0.1,0.3)*gal['DL']
-    LD_w   = rd.gauss(gal['DL'], 2*dLD_w)
+    LD_w   = rd.gauss(gal['DL'], dLD_w)
 
     np.savetxt(folder+'posterior.txt', np.column_stack([ra_w, dra_w, dec_w, ddec_w, LD_w, dLD_w]), fmt = '%f\t%f\t%f\t%f\t%f\t%f', header = 'ra\tdra\tdec\tddec\tLD\tdLD')
 
@@ -64,8 +64,8 @@ for gal in hosts:
     area = np.pi*dra_w**2
     volume = (4./3.)*np.pi*(LD_max**3-LD_min**3)*(area/(4*np.pi))
 
-    zmin = RedshiftCalculation(LD_min, omegamin)
-    zmax = RedshiftCalculation(LD_max, omegamax)
+    zmin = RedshiftCalculation(LD_min, omega)
+    zmax = RedshiftCalculation(LD_max, omega)
 
     np.savetxt(folder+'confidence_region.txt', np.column_stack([ra_min,ra_max,dec_min,dec_max,LD_min,LD_max, zmin, zmax, area*360*180,volume]), fmt = '%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f\t\t%f', header = 'ra_min\tra_max\tdec_min\tdec_max\tLD_min\tLD_max\tz_min\tz_max\tarea\tvolume')
 

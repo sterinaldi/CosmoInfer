@@ -9,6 +9,19 @@ import dill as pickle
 from scipy.special import logsumexp
 from scipy.interpolate import interp1d
 
+import re
+
+def atoi(text):
+    return int(text) if text.isdigit() else text
+
+def natural_keys(text):
+    '''
+    alist.sort(key=natural_keys) sorts in human order
+    http://nedbatchelder.com/blog/200712/human_sorting.html
+    (See Toothy's implementation in the comments)
+    '''
+    return [ atoi(c) for c in re.split(r'(\d+)', text) ]
+
 def logPosterior(args):
     density,celestial_coordinates = args
     cartesian_vect = celestial_to_cartesian(celestial_coordinates)
@@ -96,7 +109,10 @@ class Event_test(object):
         galaxy must be a list with [LD, dec, ra]
         '''
         try:
-            pLD   = np.log(gaussian(galaxy[0], self.LD, self.dLD))
+            gauss_LD = gaussian(galaxy[0], self.LD, self.dLD)
+            if gauss_LD == 0:
+                return -np.inf
+            pLD   = np.log(gauss_LD)
             pra   = np.log(gaussian(galaxy[2], self.ra, self.dra))
             pdec  = np.log(gaussian(galaxy[1], self.dec, self.ddec))
             logpost = pLD+pra+pdec
@@ -106,7 +122,10 @@ class Event_test(object):
 
     def marg_logP(self, LD):
         try:
-            logpost = np.log(gaussian(LD, self.LD, self.dLD))
+            gauss_LD = gaussian(LD, self.LD, self.dLD)
+            if gauss_LD == 0:
+                return -np.inf
+            logpost = np.log(gauss_LD)
         except:
             logpost = -np.inf
         return logpost
@@ -188,13 +207,13 @@ def read_TEST_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.066, n
     for file in all_files:
         if not '.' in file and 'event' in file:
             event_folders.append(file)
-    event_folders.sort()
+    event_folders.sort(key=natural_keys)
     events = []
     ID = 0.
 
     if nevmax is not None:
         event_folders = event_folders[:nevmax:]
-        print(event_folders)
+    print(event_folders)
 
     for evfold in event_folders:
         ID +=1
