@@ -119,7 +119,7 @@ if __name__ == '__main__':
                 host_h.append(host[index])
                 break
 
-    header = 'ID\tra\t\tdec\t\tz\t\tz_cosmo\t\tDL\t\tabsB\t\tappB\t\tdB\t\thost'
+    header = 'ID\tra\t\tdec\t\tz\t\tz_cosmo\t\tDL\t\tB_abs\t\tB\t\tB_err\t\thost'
     fmt = '%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%d'
     np.savetxt(output+'mockcatalog.txt', np.array([ID, ra, dec, z, z_cosmo, DL, absB, appB, dB, host]).T, fmt = fmt, header = header)
     np.savetxt(output+'hosts.txt', np.array([ID_h, ra_h, dec_h, z_h, z_cosmo_h, DL_h, absB_h, appB_h, dB_h, host_h]).T, fmt = fmt, header = header)

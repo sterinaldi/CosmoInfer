@@ -65,14 +65,8 @@ parser.add_option('--EMcp',              default=0, type='int', metavar='EMcp', 
 
 em_selection = opts.em_selection
 
-if opts.event_class == 'TEST':
-    errors = {'z':0.001, 'RA':0.01, 'DEC':0.01}
-    omega = lal.CreateCosmologicalParameters(0.7,0.3,0.7,-1.,0.,0.) # True cosmology
-    rel_z_error = opts.uncert # errore relativo sullo z della galassia (moto proprio + errore sperimentale)
-    events = readdata.read_event(opts.event_class, errors = errors, omega = omega, input_folder = opts.data, N_ev_max = opts.nevmax, rel_z_error = rel_z_error, n_tot = opts.hosts)
-
-if opts.event_class == 'CBC':
-    events = readdata.read_event(opts.event_class, input_folder = opts.data, emcp = opts.EMcp)
+if opts.event_class == 'TEST' or opts.event_class == 'CBC':
+    events = readdata.read_event(opts.event_class, input_folder = opts.data, emcp = opts.EMcp, nevmax = opts.nevmax)
 else:
     print('I do not know the class {0}, exit...'.format(opts.event_class))
 
@@ -90,7 +84,7 @@ for hi in h:
     logL = 0.
     print(hi)
     for e in events:
-        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 18., Ntot = e.n_tot)
+        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 18., Ntot = e.n_tot, completeness_file = opts.data+'completeness_fraction.txt')
         # logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 18., Ntot = len(e.potential_galaxy_hosts))
         # logL += lk.logLikelihood_single_event([],e, omega,0.,Ntot = e.n_tot)
     omega.DestroyCosmologicalParameters()
