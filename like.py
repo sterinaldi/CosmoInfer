@@ -80,10 +80,6 @@ dh = (h.max()-h.min())/len(h)
 evcounter = 0
 lhs = []
 
-for event in events:
-        event.zmin = RedshiftCalculation(event.LDmin, cs.CosmologicalParameters(0.3,0.3,0.7,-1,0)) # self.bounds[1][0], 0.7,-1,0))
-        event.zmax = RedshiftCalculation(event.LDmax, cs.CosmologicalParameters(1.8,0.3,0.7,-1,0))
-
 for e in events:
     I = 0.
     likelihood = []
