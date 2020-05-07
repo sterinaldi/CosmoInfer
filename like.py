@@ -106,7 +106,8 @@ for e in events:
 
 joint = np.zeros(len(likelihood))
 for like in lhs:
-    joint += like
+    if np.isfinite(like[10]):
+        joint += like
 
 fig = plt.figure()
 ax1 = fig.add_subplot(211)

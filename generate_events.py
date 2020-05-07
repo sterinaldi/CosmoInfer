@@ -24,7 +24,7 @@ def RedshiftCalculation(LD, omega, zinit=0.3, limit = 0.001):
     znew = zinit - (LD_test - LD)/dLumDist(zinit,omega)
     return RedshiftCalculation(LD, omega, zinit = znew)
 
-file_hosts = './mockcatalog/hosts.txt'
+file_hosts = './mockcatalog2/hosts.txt'
 
 hosts = np.genfromtxt(file_hosts, names = True)
 omega = lal.CreateCosmologicalParameters(0.7,0.3,0.7,-1,0,0)
@@ -37,11 +37,11 @@ m_th  = 18.
 
 counter = 1
 
-full_catalog = np.genfromtxt('./mockcatalog/mockcatalog.txt', names = True)
+full_catalog = np.genfromtxt('./mockcatalog2/mockcatalog.txt', names = True)
 
 for gal in hosts:
     sys.stdout.write('Event {0} of {1}\r'.format(counter, len(hosts)))
-    folder = './mockcatalog/event_'+str(counter)+'/'
+    folder = './mockcatalog2/event_'+str(counter)+'/'
     if not os.path.exists(folder):
         os.mkdir(folder)
     fmt = '%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%d'

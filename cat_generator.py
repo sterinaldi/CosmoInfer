@@ -41,7 +41,7 @@ if __name__ == '__main__':
     M_min    = -23.
     M_cutoff = -12
     Schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, omega.h)
-    output = 'mockcatalog/'
+    output = 'mockcatalog2/'
     if not os.path.exists(output):
         os.mkdir(output)
     numberdensity = 0.066
@@ -102,7 +102,7 @@ if __name__ == '__main__':
         appB.append(appM(z_c, B, omega))
         host.append(0)
 
-    for i in range(25):
+    for i in range(100):
         while 1:
             index = rd.randint(0,N_tot-1)
             if absB[index] < M_cutoff:

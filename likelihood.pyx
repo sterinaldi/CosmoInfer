@@ -71,6 +71,8 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     if N_em <= N:
         M = 0
         N_noem = Ntot - N
+        if N_noem < 0:
+            N_noem = 0
 
     if completeness_file is not None:
         file_comp = open(completeness_file, 'a')
