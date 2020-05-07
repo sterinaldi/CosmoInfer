@@ -91,7 +91,7 @@ for e in events:
         e.mag_params = pars
         logL = 0.
         sys.stdout.write('ev {0} of {1}, h = {2}\r'.format(evcounter, len(events), mu))
-        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 18., Ntot = e.n_tot, completeness_file = opts.out+'completeness_fraction_'+str(e.ID)+'.txt')
+        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 18., Ntot = e.n_tot, completeness_file = None)
         likelihood.append(logL)
 
     likelihood = np.array(likelihood)
