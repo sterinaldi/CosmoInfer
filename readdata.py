@@ -9,6 +9,19 @@ import dill as pickle
 from scipy.special import logsumexp
 from scipy.interpolate import interp1d
 
+import re
+
+def atoi(text):
+    return int(text) if text.isdigit() else text
+
+def natural_keys(text):
+    '''
+    alist.sort(key=natural_keys) sorts in human order
+    http://nedbatchelder.com/blog/200712/human_sorting.html
+    (See Toothy's implementation in the comments)
+    '''
+    return [ atoi(c) for c in re.split(r'(\d+)', text) ]
+
 def logPosterior(args):
     density,celestial_coordinates = args
     cartesian_vect = celestial_to_cartesian(celestial_coordinates)
@@ -17,6 +30,7 @@ def logPosterior(args):
 
 def gaussian(x,x0,sigma):
     return np.exp(-(x-x0)**2/(2*sigma**2))/(sigma*np.sqrt(2*np.pi))
+
 
 def LumDist(z, omega):
     return 3e3*(z + (1-omega.om +omega.ol)*z**2/2.)/omega.h
@@ -45,61 +59,77 @@ class Event_test(object):
     """
     def __init__(self,
                  ID,
-                 dLD,
-                 dRA,
-                 dDEC,
-                 LD_true,
-                 RA_true,
-                 DEC_true,
-                 omega,
-                 rel_z_error  = 0.1,
-                 catalog_file = None,
-                 catalog_data = None,
-                 n_tot        = None):
+                 catalog_file,
+                 event_file,
+                 levels_file,
+                 EMcp         = 0,
+                 n_tot        = None,
+                 gal_density  = 0.6675): # galaxies/Mpc^3 (from Conselice et al., 2016)
 
-
-        if catalog_file is None and catalog_data is None:
+        if catalog_file is None:
             raise SystemExit('No catalog provided')
 
         self.ID                     = ID
-        self.LD                     = LD_true
-        self.dLD                    = dLD
-        self.z_true                 = RedshiftCalculation(self.LD, omega)
-        self.dz                     = self.z_true-RedshiftCalculation(self.LD-self.dLD, omega)
-        self.dRA                    = dRA
-        self.dDEC                   = dDEC
-        self.RA_true                = RA_true
-        self.DEC_true               = DEC_true
-
-        '''
-        ATTENZIONE: PER CLASSI NON-TEST È NECESSARIO RIPENSARE I BOUNDARIES
-        '''
-
-        self.ramin   = RA_true-3*dRA
-        self.ramax   = RA_true+3*dRA
-        self.decmin  = DEC_true-3*dDEC
-        self.decmax  = DEC_true+3*dDEC
-        self.zmin    = self.z_true-3*self.dz
-        self.zmax    = self.z_true+3*self.dz
-
-        self.potential_galaxy_hosts = read_galaxy_catalog({'RA':[self.ramin, self.ramax], 'DEC':[self.decmin, self.decmax], 'z':[self.zmin, self.zmax]}, rel_z_error = rel_z_error, catalog_data = catalog_data, catalog_file = catalog_file, n_tot = n_tot)
+        self.potential_galaxy_hosts = read_galaxy_catalog({'RA':[0., 360.], 'DEC':[-90., 90.], 'z':[0., 4.]}, catalog_file = catalog_file, n_tot = None)
         self.n_hosts                = len(self.potential_galaxy_hosts)
+
+        self.cl      = np.genfromtxt(levels_file, names = True)
+        self.vol_90  = self.cl['volume']
+        self.area_90 = self.cl['area']
+        self.LDmin   = self.cl['LD_min']
+        self.LDmax   = self.cl['LD_max']
+        self.ramin   = self.cl['ra_min']
+        self.ramax   = self.cl['ra_max']
+        self.decmin  = self.cl['dec_min']
+        self.decmax  = self.cl['dec_max']
+        self.zmin    = self.cl['z_min']
+        self.zmax    = self.cl['z_max']
+
+        self.posterior = np.genfromtxt(event_file, names = True)
+
+        self.LD   = self.posterior['LD']
+        self.dLD  = self.posterior['dLD']
+        self.ra   = self.posterior['ra']
+        self.dra  = self.posterior['dra']
+        self.dec  = self.posterior['dec']
+        self.ddec = self.posterior['ddec']
+
         if n_tot is not None:
             self.n_tot = n_tot
         else:
-            self.n_tot = self.n_hosts
+            if EMcp:
+                self.n_tot = 1.
+            elif gal_density is not None:
+                self.n_tot = int(gal_density*self.vol_90)
+        print('Total number of galaxies in the considered volume ({0} Mpc^3): {1}'.format(self.vol_90, self.n_tot))
+        self.potential_galaxy_hosts = catalog_weight(self.potential_galaxy_hosts, weight = 'uniform', ngal = self.n_tot)
 
-    def post_LD(self, LD):
-        app = gaussian(LD, self.LD, self.dLD)
-        return app
+    def logP(self, galaxy):
+        '''
+        galaxy must be a list with [LD, dec, ra]
+        '''
+        try:
+            gauss_LD = gaussian(galaxy[0], self.LD, self.dLD)
+            if gauss_LD == 0:
+                return -np.inf
+            pLD   = np.log(gauss_LD)
+            pra   = np.log(gaussian(galaxy[2], self.ra, self.dra))
+            pdec  = np.log(gaussian(galaxy[1], self.dec, self.ddec))
+            logpost = pLD+pra+pdec
+        except:
+            logpost = -np.inf
+        return logpost
 
-    def post_RA(self, RA):
-        app = gaussian(RA, self.RA_true, self.dRA)
-        return app
-
-    def post_DEC(self, DEC):
-        app = gaussian(DEC, self.DEC_true, self.dDEC)
-        return app
+    # def marg_logP(self, LD):
+    #     try:
+    #         gauss_LD = gaussian(LD, self.LD, self.dLD)
+    #         if gauss_LD == 0:
+    #             return -np.inf
+    #         logpost = np.log(gauss_LD)
+    #     except:
+    #         logpost = -np.inf
+    #     return logpost
+    #
 
 class Event_CBC(object):
 
@@ -168,31 +198,32 @@ class Event_CBC(object):
                 logpost = -np.inf
             return logpost
 
-def read_TEST_event(errors = None, omega = None, input_folder = None, catalog_data = None, N_ev_max = None, rel_z_error = 0.01, n_tot = None):
+def read_TEST_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.066, nevmax = None):
     '''
     Classe di evento costruita per finalità di test. Le distribuzioni di probabilità sono gaussiane e centrate su una galassia a scelta.
     '''
-    all_files    = os.listdir(input_folder)
-    events_list  = [f for f in all_files if 'event' in f]
-    catalog_list = [f for f in all_files if 'catalog' in f]
-    events_list.sort()
-    catalog_list.sort()
-    print(catalog_list)
+    all_files     = os.listdir(input_folder)
+    event_folders = []
+    for file in all_files:
+        if not '.' in file and 'event' in file:
+            event_folders.append(file)
+    event_folders.sort(key=natural_keys)
     events = []
+    ID = 0.
 
-    if N_ev_max is not None:
-        events_list = events_list[N_ev_max:N_ev_max+1:]
-        catalog_list = catalog_list[N_ev_max:N_ev_max+1:]
+    if nevmax is not None:
+        event_folders = event_folders[:nevmax:]
+    print(event_folders)
 
-    for ev, cat in zip(events_list, catalog_list):
-        catalog_file        = input_folder+"/"+cat
-        event_file          = open(input_folder+'/'+ev,"r")
-        data                = np.genfromtxt(event_file, names = True)
-        events.append(Event_test(N_ev_max, data['dLD'],np.deg2rad(data['dRA']), np.deg2rad(data['dDEC']), data['LD'], np.deg2rad(data['RA']), np.deg2rad(data['DEC']), omega, rel_z_error, catalog_file, catalog_data, n_tot))
-        event_file.close()
+    for evfold in event_folders:
+        ID +=1
+        catalog_file  = input_folder+evfold+'/galaxy_0.9.txt'
+        event_file    = input_folder+evfold+'/posterior.txt'
+        levels_file   = input_folder+evfold+'/confidence_region.txt'
+        events.append(Event_test(ID, catalog_file, event_file, levels_file, EMcp = emcp, gal_density=gal_density))
     return np.array(events)
 
-def read_CBC_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.6675):
+def read_CBC_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.6675, nevmax = None):
     all_files     = os.listdir(input_folder)
     event_folders = []
     for file in all_files:
