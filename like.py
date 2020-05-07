@@ -100,7 +100,7 @@ for e in events:
         I += li*dM_mu
     likelihood = likelihood - np.log(I) - likelihood.max()
     lhs.append(np.array(likelihood))
-    np.savetxt(opts.out+'likelihood_'+str(e.ID)+'.txt', np.array([h, likelihood]).T, header = 'h\t\tlogL')
+    np.savetxt(opts.out+'likelihood_'+str(e.ID)+'.txt', np.array([M_mu, likelihood]).T, header = 'M_mu\t\tlogL')
 
 joint = np.zeros(len(likelihood))
 for like in lhs:
