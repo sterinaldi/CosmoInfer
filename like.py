@@ -76,15 +76,12 @@ if opts.event_class == 'CBC':
 else:
     print('I do not know the class {0}, exit...'.format(opts.event_class))
 
-h = np.linspace(0.3,2,100)
+mu = np.linspace(-23,-12,100)
 # h = [0.7]
 likelihood = []
 
 for event in events:
-        event.zmin = RedshiftCalculation(event.LDmin, cs.CosmologicalParameters(0.3,0.3,0.7,-1,0)) # self.bounds[1][0], 0.7,-1,0))
-        event.zmax = RedshiftCalculation(event.LDmax, cs.CosmologicalParameters(1.8,0.3,0.7,-1,0))
-        # event.zmin = 0.003
-        # event.zmax = 0.03
+
 for hi in h:
     omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
     logL = 0.
