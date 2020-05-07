@@ -24,7 +24,7 @@ cdef inline double linear_density(double x, double a, double b): return a+log(x)
 @cython.nonecheck(False)
 @cython.cdivision(True)
 
-cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalParameters omega, double m_th, int Ntot, int EMcp = 0, object completeness_file = None):
+cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalParameters omega, double m_th, int Ntot, int N_sources, int EMcp = 0, object completeness_file = None):
     """
     Likelihood function for a single GW event.
     Loops over all possible hosts to accumulate the likelihood
@@ -46,6 +46,7 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     cdef double p_no_post_dark = 0.
     cdef double p_with_post_dark = 0.
     cdef double zmin, zmax
+    cdef int N_back = Ntot - N_sources
 
     cdef Galaxy mockgalaxy = Galaxy(-1, 0,0,0,False, weight = 1./Ntot)
 
@@ -56,6 +57,9 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
 
     zmin   = event.zmin
     zmax   = event.zmax
+
+    if  Ntot < N:
+        M = 0
 
     for i in range(N):
 
@@ -126,7 +130,7 @@ cdef double integrate_magnitude_source(object e, double m_i, double dm_i, double
             I += e.mag_dist(M_view[i])*dM/(appM(z_cosmo, M_max, omega)-appM(z_cosmo, M_min, omega))
     return I
 
-cdef double integrate_magnitude_background(object e, double m_i, double dm_i, double z_cosmo, CosmologicalParameters omega, double visibility, double N_sources, double N_back, M_max = 0., M_min = -23., m_th = 30.):
+cdef double integrate_magnitude_background(object e, double m_i, double dm_i, double z_cosmo, CosmologicalParameters omega, double N_sources, double N_back, double visibility = 0, M_max = 0., double M_min = -23., double m_th = 30.):
 
     cdef unsigned int i, n = 100
     cdef double I = 0.
@@ -194,7 +198,7 @@ cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameter
         for i in range(n):
             LD_i = omega.LuminosityDistance(z_view[i])
             exp_post = exp(event.marg_logP(LD_i))
-            int_magnitude = integrate_magnitude_source(event, None, None, z_view[i], omega, visibility = 0)
+            int_magnitude = integrate_magnitude_source(event, 0, 0, z_view[i], omega, visibility = 0)
             prop_motion = 1./(zmax-zmin)
             CoVolEl = omega.ComovingVolumeElement(z_view[i])/(CoVol)
             I += dz*exp_post*prop_motion*CoVolEl*int_magnitude*prop_motion*CoVolEl*(4*np.pi)

@@ -62,10 +62,11 @@ class Event_test(object):
                  catalog_file,
                  event_file,
                  levels_file,
+                 ev_density   = 0,
                  mag_params   = None,
                  EMcp         = 0,
                  n_tot        = None,
-                 gal_density  = 0.6675): # galaxies/Mpc^3 (from Conselice et al., 2016)
+                 gal_density  = 0.06675): # galaxies/Mpc^3 (from Conselice et al., 2016)
 
         if catalog_file is None:
             raise SystemExit('No catalog provided')
@@ -106,10 +107,37 @@ class Event_test(object):
                 self.n_tot = int(gal_density*self.vol_90)
         print('Total number of galaxies in the considered volume ({0} Mpc^3): {1}'.format(self.vol_90, self.n_tot))
         self.potential_galaxy_hosts = catalog_weight(self.potential_galaxy_hosts, weight = 'uniform', ngal = self.n_tot)
+        self.N_events = int(ev_density*self.vol_90)
 
     def mag_dist(self, M):
         # gaussiana con mag_params = [mu,sigma]
         return gaussian(M, self.mag_params[0], self.mag_params[1])
+
+    def logP(self, galaxy):
+        '''
+        galaxy must be a list with [LD, dec, ra]
+        '''
+        try:
+            gauss_LD = gaussian(galaxy[0], self.LD, self.dLD)
+            if gauss_LD == 0:
+                return -np.inf
+            pLD   = np.log(gauss_LD)
+            pra   = np.log(gaussian(galaxy[2], self.ra, self.dra))
+            pdec  = np.log(gaussian(galaxy[1], self.dec, self.ddec))
+            logpost = pLD+pra+pdec
+        except:
+            logpost = -np.inf
+        return logpost
+
+    def marg_logP(self, LD):
+        try:
+            gauss_LD = gaussian(LD, self.LD, self.dLD)
+            if gauss_LD == 0:
+                return -np.inf
+            logpost = np.log(gauss_LD)
+        except:
+            logpost = -np.inf
+        return logpost
 
 
 class Event_CBC(object):
@@ -196,12 +224,16 @@ def read_TEST_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.066, n
         event_folders = event_folders[:nevmax:]
     print(event_folders)
 
+    evdensity_file = input_folder+'/evdensity.txt'
+    evdensity = np.genfromtxt(evdensity_file, names = True)['evdensity']
+    print(evdensity)
+
     for evfold in event_folders:
         ID +=1
         catalog_file  = input_folder+evfold+'/galaxy_0.9.txt'
         event_file    = input_folder+evfold+'/posterior.txt'
         levels_file   = input_folder+evfold+'/confidence_region.txt'
-        events.append(Event_test(ID, catalog_file, event_file, levels_file, EMcp = emcp, gal_density=gal_density))
+        events.append(Event_test(ID, catalog_file, event_file, levels_file, EMcp = emcp, gal_density=gal_density, ev_density = evdensity))
     return np.array(events)
 
 def read_CBC_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.6675, nevmax = None):
