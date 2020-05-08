@@ -218,21 +218,21 @@ def read_TEST_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.066, n
             event_folders.append(file)
     event_folders.sort(key=natural_keys)
     events = []
-    ID = 0.
+    ID = 0
 
     if nevmax is not None:
         event_folders = event_folders[:nevmax:]
-    print(event_folders)
+
 
     evdensity_file = input_folder+'/evdensity.txt'
     evdensity = np.genfromtxt(evdensity_file, names = True)['evdensity']
-    print(evdensity)
 
     for evfold in event_folders:
         ID +=1
         catalog_file  = input_folder+evfold+'/galaxy_0.9.txt'
         event_file    = input_folder+evfold+'/posterior.txt'
         levels_file   = input_folder+evfold+'/confidence_region.txt'
+        print(ID)
         events.append(Event_test(ID, catalog_file, event_file, levels_file, EMcp = emcp, gal_density=gal_density, ev_density = evdensity))
     return np.array(events)
 

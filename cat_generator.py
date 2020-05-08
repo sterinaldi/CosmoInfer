@@ -43,7 +43,7 @@ if __name__ == '__main__':
     M_mean = -20
     sigma  = 0.5
     Schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, omega.h)
-    output = 'upsidedown/'
+    output = 'upsidedown_sch/'
     if not os.path.exists(output):
         os.mkdir(output)
     numberdensity = 0.066
@@ -108,9 +108,11 @@ if __name__ == '__main__':
 
     for i in range(n_ev):
         index = rd.randint(0,N_tot-1)
-        new_B = rd.gauss(M_mean,sigma)
+        #new_B = rd.gauss(M_mean,sigma)
+        #new_Bapp = appM(z_cosmo[index], new_B, omega)
         host[index] = 1
-        absB[index] = new_B
+        #absB[index] = new_B
+        #appB[index] = new_Bapp
         ID_h.append(ID[index])
         ra_h.append(ra[index])
         dec_h.append(dec[index])

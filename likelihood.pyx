@@ -68,11 +68,15 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
 
         p_no_post_view[i]   = ComputeLogLhNoPost(hosts[i], event, omega, zmin, zmax, N_sources, N_back, m_th = m_th)
         p_with_post_view[i] = ComputeLogLhWithPost(hosts[i], event, omega, zmin, zmax, m_th = m_th)
+        # print('no post: {0}'.format(p_no_post[i]))
+        # print('with post: {0}'.format(p_with_post[i]))
 
     # Calcolo le likelihood anche per una singola dark galaxy
     if not (M == 0):
         p_no_post_dark   = ComputeLogLhNoPost(mockgalaxy, event, omega, zmin, zmax, N_sources, N_back, m_th = m_th)
         p_with_post_dark = ComputeLogLhWithPost(mockgalaxy, event, omega, zmin, zmax, m_th = m_th)
+        # print('no post dark: {0}'.format(p_no_post_dark))
+        # print('with post dark: {0}'.format(p_with_post_dark))
 
     # Calcolo i termini che andranno sommati tra loro (logaritmi)
     cdef np.ndarray[double, ndim=1, mode="c"] addends = np.zeros(N, dtype=np.float64)
@@ -112,20 +116,23 @@ cdef inline double appM(double z, double M, CosmologicalParameters omega):
 cdef inline double gaussian(double x, double x0, double sigma) nogil:
     return exp(-(x-x0)**2/(2*sigma**2))/(sigma*sqrt(2*M_PI))
 
-cdef double integrate_magnitude_source(object e, double m_i, double dm_i, double z_cosmo, CosmologicalParameters omega, visibility, M_max = 0., M_min = -23., m_th = 30.):
+cdef double integrate_magnitude_source(object e, double m_i, double dm_i, double z_cosmo, CosmologicalParameters omega, int visibility, float m_th = 30., float M_max = 0., float M_min = -23.):
 
     cdef unsigned int i, n = 100
     cdef double I = 0.
     cdef np.ndarray[double, ndim = 1, mode = 'c'] M = np.linspace(M_min, M_max, n, dtype = np.float64)
     cdef double[::1] M_view = M
     cdef double dM = (M_max-M_min)/n
+    cdef double m_min = appM(z_cosmo, M_min, omega)
+    cdef double m_max = appM(z_cosmo, M_max, omega)
 
     cdef double m_app
 
     for i in range(n):
         m_app = appM(z_cosmo, M_view[i], omega)
-        if visibility and m_app < m_th :
-            I += gaussian(m_i, m_app, dm_i)*e.mag_dist(M_view[i])*dM
+        if visibility: # and m_app < m_th :
+            # I += gaussian(m_i, m_app, dm_i)*e.mag_dist(M_view[i])*dM
+            I += e.mag_dist(absM(z_cosmo, m_i, omega))*dM/(M_max-M_min)
         elif not visibility and m_app > m_th:
             I += e.mag_dist(M_view[i])*dM/(appM(z_cosmo, M_max, omega)-appM(z_cosmo, M_min, omega))
     return I
@@ -137,6 +144,8 @@ cdef double integrate_magnitude_background(object e, double m_i, double dm_i, do
     cdef np.ndarray[double, ndim = 1, mode = 'c'] M = np.linspace(M_min, M_max, n, dtype = np.float64)
     cdef double[::1] M_view = M
     cdef double dM = (M_max-M_min)/n
+    cdef double m_min = appM(z_cosmo, M_min, omega)
+    cdef double m_max = appM(z_cosmo, M_max, omega)
 
     cdef object Schechter
     cdef double alpha, Mstar
@@ -147,8 +156,9 @@ cdef double integrate_magnitude_background(object e, double m_i, double dm_i, do
 
     for i in range(n):
         m_app = appM(z_cosmo, M_view[i], omega)
-        if visibility and m_app < m_th :
-            I += dM*gaussian(m_i, m_app, dm_i)*(N_sources*e.mag_dist(M_view[i])+N_back*Schechter(M_view[i]))/(N_sources+N_back)
+        if visibility :#and m_app < m_th :
+            #I += dM*gaussian(m_i, m_app, dm_i)*(N_sources*e.mag_dist(M_view[i])+N_back*Schechter(M_view[i]))/(N_sources+N_back)
+            I += (dM/(M_max-M_min))*(N_sources*e.mag_dist(absM(z_cosmo, m_i, omega))+N_back*Schechter(absM(z_cosmo, m_i, omega)))/float(N_sources+N_back)
         elif not visibility and m_app > m_th:
             I += dM*((N_sources*e.mag_dist(M_view[i])+N_back*Schechter(M_view[i]))/(N_sources+N_back))/(appM(z_cosmo, M_max, omega)-appM(z_cosmo, M_min, omega))
     return I
@@ -192,17 +202,17 @@ cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameter
             CoVolEl = omega.ComovingVolumeElement(z_view[i])/(CoVol)
             int_magnitude = integrate_magnitude_source(event, gal.app_magnitude, gal.dapp_magnitude, z_view[i], omega, visibility = 1)
             I += dz*exp_post*prop_motion*CoVolEl*int_magnitude*prop_motion*CoVolEl
-        return log(I*gal.weight)
+        return log(I)
 
     else:
         for i in range(n):
             LD_i = omega.LuminosityDistance(z_view[i])
             exp_post = exp(event.marg_logP(LD_i))
-            int_magnitude = integrate_magnitude_source(event, 0, 0, z_view[i], omega, visibility = 0)
+            int_magnitude = integrate_magnitude_source(event, 0, 0, z_view[i], omega, 0, m_th = m_th )
             prop_motion = 1./(zmax-zmin)
             CoVolEl = omega.ComovingVolumeElement(z_view[i])/(CoVol)
             I += dz*exp_post*prop_motion*CoVolEl*int_magnitude*prop_motion*CoVolEl*(4*np.pi)
-        return log(I*gal.weight)
+        return log(I)
 
 @cython.boundscheck(False)
 @cython.wraparound(False)

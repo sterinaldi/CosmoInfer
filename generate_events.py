@@ -24,7 +24,7 @@ def RedshiftCalculation(LD, omega, zinit=0.3, limit = 0.001):
     znew = zinit - (LD_test - LD)/dLumDist(zinit,omega)
     return RedshiftCalculation(LD, omega, zinit = znew)
 
-file_hosts = './upsidedown/hosts.txt'
+file_hosts = './upsidedown_sch/hosts.txt'
 
 hosts = np.genfromtxt(file_hosts, names = True)
 omega = lal.CreateCosmologicalParameters(0.7,0.3,0.7,-1,0,0)
@@ -37,11 +37,11 @@ m_th  = 18.
 
 counter = 1
 
-full_catalog = np.genfromtxt('./upsidedown/mockcatalog.txt', names = True)
+full_catalog = np.genfromtxt('./upsidedown_sch/mockcatalog.txt', names = True)
 
 for gal in hosts:
     sys.stdout.write('Event {0} of {1}\r'.format(counter, len(hosts)))
-    folder = './upsidedown/event_'+str(counter)+'/'
+    folder = './upsidedown_sch/event_'+str(counter)+'/'
     if not os.path.exists(folder):
         os.mkdir(folder)
     fmt = '%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%d'
@@ -83,7 +83,7 @@ for gal in hosts:
     host    = []
 
     for pot_host in full_catalog:
-        if (zmin < pot_host['z'] < zmax) and (np.sqrt((pot_host['ra']-ra_w)**2+(pot_host['dec']-dec_w)**2) < dra_w) and (pot_host['B']<m_th):
+        if (zmin < pot_host['z'] < zmax) and (np.sqrt((pot_host['ra']-ra_w)**2+(pot_host['dec']-dec_w)**2) < 2*dra_w) and (pot_host['B']<m_th):
             ID.append(pot_host['ID'])
             ra.append(np.rad2deg(pot_host['ra']))
             ra_rad.append(pot_host['ra'])
