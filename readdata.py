@@ -8,6 +8,7 @@ from volume_reconstruction.utils.utils import *
 import dill as pickle
 from scipy.special import logsumexp
 from scipy.interpolate import interp1d
+from scipy.stats import gaussian_kde
 
 import re
 
@@ -179,6 +180,8 @@ class Event_CBC(object):
                 self.n_tot = int(gal_density*self.vol_90)
         print('Total number of galaxies in the considered volume ({0} Mpc^3): {1}'.format(self.vol_90, self.n_tot))
         self.potential_galaxy_hosts = catalog_weight(self.potential_galaxy_hosts, weight = 'uniform', ngal = self.n_tot)
+        self.zmin = RedshiftCalculation(self.LDmin, lal.CreateCosmologicalParameters(0.3,0.7,0.3,-1,0,0))
+        self.zmax = RedshiftCalculation(self.LDmax, lal.CreateCosmologicalParameters(2,0.7,0.3,-1,0,0))
 
     def logP(self, galaxy):
         '''
@@ -197,6 +200,69 @@ class Event_CBC(object):
             except:
                 logpost = -np.inf
             return logpost
+
+class Event_CBC_EM(object):
+
+    def __init__(self,
+                 ID,
+                 catalog_file,
+                 event_file,
+                 levels_file,
+                 distance_file,
+                 EMcp         = 0,
+                 n_tot        = None,
+                 gal_density  = 0.6675): # galaxies/Mpc^3 (from Conselice et al., 2016)
+
+        if catalog_file is None:
+            raise SystemExit('No catalog provided')
+
+        self.ID                     = ID
+        self.potential_galaxy_hosts = read_galaxy_catalog({'RA':[0., 360.], 'DEC':[-90., 90.], 'z':[0., 4.]}, catalog_file = catalog_file, n_tot = None)
+        self.n_hosts                = len(self.potential_galaxy_hosts)
+        self.samples_DL             = np.genfromtxt(event_file)
+        self.pdf                    = gaussian_kde(self.samples_DL)
+
+        self.cl      = np.genfromtxt(levels_file, names = ['CL','vol','area','LD', 'ramin', 'ramax', 'decmin', 'decmax'])
+        self.vol_90  = self.cl['vol'][np.where(self.cl['CL']==0.90)[0][0]]#-self.cl['vol'][np.where(self.cl['CL']==0.05)[0][0]]
+        self.area_90 = self.cl['area'][np.where(self.cl['CL']==0.90)[0][0]]
+        self.LDmin   = self.cl['LD'][np.where(self.cl['CL']==0.05)[0][0]]
+        self.LDmax   = self.cl['LD'][np.where(self.cl['CL']==0.95)[0][0]]
+        self.LDmean  = self.cl['LD'][np.where(self.cl['CL']==0.5)[0][0]]
+        # self.vol_90  = 4*np.pi*(self.LDmax**3-self.LDmin**3)*self.area_90/(180.*360.*3)
+        self.ramin   = self.cl['ramin'][np.where(self.cl['CL']==0.9)[0][0]]
+        self.ramax   = self.cl['ramax'][np.where(self.cl['CL']==0.9)[0][0]]
+        self.decmin  = self.cl['decmin'][np.where(self.cl['CL']==0.9)[0][0]]
+        self.decmax  = self.cl['decmax'][np.where(self.cl['CL']==0.9)[0][0]]
+
+        marginalized_post = np.genfromtxt(distance_file, names = True)
+        self.interpolant = interp1d(marginalized_post['dist'], marginalized_post['post'], 'linear')
+
+
+
+        if n_tot is not None:
+            self.n_tot = n_tot
+        else:
+            if EMcp:
+                self.n_tot = 1.
+            elif self.LDmean < 0: # se l'oggetto è vicino non posso assumere omogeneità
+                self.n_tot = len(self.potential_galaxy_hosts)
+            elif gal_density is not None:
+                self.n_tot = int(gal_density*self.vol_90)
+        print('Total number of galaxies in the considered volume ({0} Mpc^3): {1}'.format(self.vol_90, self.n_tot))
+        self.potential_galaxy_hosts = catalog_weight(self.potential_galaxy_hosts, weight = 'uniform', ngal = self.n_tot)
+        self.zmin = RedshiftCalculation(self.LDmin, lal.CreateCosmologicalParameters(0.3,0.7,0.3,-1,0,0))
+        self.zmax = RedshiftCalculation(self.LDmax, lal.CreateCosmologicalParameters(2,0.7,0.3,-1,0,0))
+
+    def logP(self, galaxy):
+        '''
+        galaxy must be a list with [LD, dec, ra]
+        '''
+        try:
+            logpost = np.log(self.pdf(galaxy[0]))-2.*np.log(galaxy[0])+np.log(self.LDmax**3-self.LDmin**3)-np.log(3)
+        except:
+            logpost = -np.inf
+        return logpost
+
 
 def read_TEST_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.066, nevmax = None):
     '''
@@ -240,6 +306,23 @@ def read_CBC_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.6675, n
         events.append(Event_CBC(ID, catalog_file, event_file, levels_file, distance_file, EMcp = emcp, gal_density=gal_density))
     return np.array(events)
 
+def read_CBC_EM_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.6675, nevmax = None):
+    all_files     = os.listdir(input_folder)
+    event_folders = []
+    for file in all_files:
+        if not '.' in file and 'event' in file:
+            event_folders.append(file)
+    events = []
+    ID = 0.
+    for evfold in event_folders:
+        ID +=1
+        catalog_file  = input_folder+evfold+'/galaxy_0.9.txt'
+        event_file    = input_folder+evfold+'/samples_DL.txt'
+        levels_file   = input_folder+evfold+'/confidence_levels.txt'
+        distance_file = input_folder+evfold+'/distance_map.txt'
+        events.append(Event_CBC_EM(ID, catalog_file, event_file, levels_file, distance_file, EMcp = emcp, gal_density=gal_density))
+    return np.array(events)
+
 
 
 
@@ -248,6 +331,7 @@ def read_event(event_class,*args,**kwargs):
 
     if event_class == "TEST": return read_TEST_event(*args, **kwargs)
     if event_class == "CBC": return read_CBC_event(*args, **kwargs)
+    if event_class == "CBC_EM": return read_CBC_EM_event(*args, **kwargs)
     else:
         print("I do not know the class %s, exiting\n"%event_class)
         exit(-1)

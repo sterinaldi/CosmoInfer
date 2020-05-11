@@ -24,10 +24,10 @@ def RedshiftCalculation(LD, omega, zinit=0.3, limit = 0.001):
     znew = zinit - (LD_test - LD)/dLumDist(zinit,omega)
     return RedshiftCalculation(LD, omega, zinit = znew)
 
-file_hosts = './mockcatalog2/hosts.txt'
+file_hosts = './mockcatalog_H150/hosts.txt'
 
 hosts = np.genfromtxt(file_hosts, names = True)
-omega = lal.CreateCosmologicalParameters(0.7,0.3,0.7,-1,0,0)
+omega = lal.CreateCosmologicalParameters(1.5,0.3,0.7,-1,0,0)
 
 omegamin = lal.CreateCosmologicalParameters(0.3,0.3,0.7,-1,0,0)
 omegamax = lal.CreateCosmologicalParameters(2,0.3,0.7,-1,0,0)
@@ -37,11 +37,11 @@ m_th  = 18.
 
 counter = 1
 
-full_catalog = np.genfromtxt('./mockcatalog2/mockcatalog.txt', names = True)
+full_catalog = np.genfromtxt('./mockcatalog_H150/mockcatalog.txt', names = True)
 
 for gal in hosts:
     sys.stdout.write('Event {0} of {1}\r'.format(counter, len(hosts)))
-    folder = './mockcatalog2/event_'+str(counter)+'/'
+    folder = './mockcatalog_H150/event_'+str(counter)+'/'
     if not os.path.exists(folder):
         os.mkdir(folder)
     fmt = '%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%d'
@@ -83,7 +83,7 @@ for gal in hosts:
     host    = []
 
     for pot_host in full_catalog:
-        if (zmin < pot_host['z'] < zmax) and (np.sqrt((pot_host['ra']-ra_w)**2+(pot_host['dec']-dec_w)**2) < dra_w) and (pot_host['B']<m_th):
+        if (zmin < pot_host['z'] < zmax) and (np.sqrt((pot_host['ra']-ra_w)**2+(pot_host['dec']-dec_w)**2) < 2*dra_w) and (pot_host['B']<m_th):
             ID.append(pot_host['ID'])
             ra.append(np.rad2deg(pot_host['ra']))
             ra_rad.append(pot_host['ra'])

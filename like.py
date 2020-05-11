@@ -21,6 +21,41 @@ import matplotlib.pyplot as plt
 from displaypost import plot_post
 import math
 
+def weighted_quantile(values, quantiles, sample_weight=None,
+                      values_sorted=False, old_style=False):
+    """ Very close to numpy.percentile, but supports weights.
+    NOTE: quantiles should be in [0, 1]!
+    :param values: numpy.array with data
+    :param quantiles: array-like with many quantiles needed
+    :param sample_weight: array-like of the same length as `array`
+    :param values_sorted: bool, if True, then will avoid sorting of
+        initial array
+    :param old_style: if True, will correct output to be consistent
+        with numpy.percentile.
+    :return: numpy.array with computed quantiles.
+    """
+    values = np.array(values)
+    quantiles = np.array(quantiles)
+    if sample_weight is None:
+        sample_weight = np.ones(len(values))
+    sample_weight = np.array(sample_weight)
+    assert np.all(quantiles >= 0) and np.all(quantiles <= 1), \
+        'quantiles should be in [0, 1]'
+
+    if not values_sorted:
+        sorter = np.argsort(values)
+        values = values[sorter]
+        sample_weight = sample_weight[sorter]
+
+    weighted_quantiles = np.cumsum(sample_weight) - 0.5 * sample_weight
+    if old_style:
+        # To be convenient with numpy.percentile
+        weighted_quantiles -= weighted_quantiles[0]
+        weighted_quantiles /= weighted_quantiles[-1]
+    else:
+        weighted_quantiles /= np.sum(sample_weight)
+    return np.interp(quantiles, weighted_quantiles, values)
+
 def LumDist(z, omega):
     return 3e3*(z + (1-omega.om +omega.ol)*z**2/2.)/omega.h
 
@@ -64,21 +99,24 @@ parser.add_option('--EMcp',              default=0, type='int', metavar='EMcp', 
 (opts,args)=parser.parse_args()
 
 
-if opts.event_class == 'TEST' or opts.event_class == 'CBC':
-    events = readdata.read_event(opts.event_class, input_folder = opts.data, emcp = opts.EMcp, nevmax = opts.nevmax)
-else:
-    print('I do not know the class {0}, exit...'.format(opts.event_class))
+events = readdata.read_event(opts.event_class, input_folder = opts.data, emcp = opts.EMcp, nevmax = opts.nevmax)
 
 if opts.out == None:
     opts.out = opts.data + 'output/'
     if not os.path.exists(opts.out):
         os.mkdir(opts.out)
 
-h = np.linspace(0.3,2,100)
-dh = (h.max()-h.min())/len(h)
+h1  = np.linspace(0.3, 0.5, 10, endpoint=False)
+dh1 = (h1.max()-h1.min())/len(h1)
+h2  = np.linspace(0.5, 0.9, 100, endpoint=False)
+dh2 = (h2.max()-h2.min())/len(h2)
+h3  = np.linspace(0.9, 1.8, 90 , endpoint=False)
+dh3 = (h3.max()-h3.min())/len(h3)
+h   = np.concatenate((h1,h2,h3))
 # h = [0.7]
-evcounter = 0
-lhs = []
+evcounter    = 0
+lhs          = []
+lhs_unnormed = []
 
 for e in events:
     I = 0.
@@ -93,29 +131,93 @@ for e in events:
         likelihood.append(logL)
 
     likelihood = np.array(likelihood)
+    lhs_unnormed.append(np.array(likelihood))
     likelihood_app = np.exp(likelihood - likelihood.max())
-    for li in likelihood_app:
+    for i in range(len(likelihood_app)):
+        li = likelihood_app[i]
+        if h[i] < 0.5:
+            dh = dh1
+        elif 0.5 <= h[i] < 0.9:
+            dh = dh2
+        elif 0.9 <= h[i] < 2:
+            dh = dh3
         I += li*dh
     likelihood = likelihood - np.log(I) - likelihood.max()
     lhs.append(np.array(likelihood))
     np.savetxt(opts.out+'likelihood_'+str(e.ID)+'.txt', np.array([h, likelihood]).T, header = 'h\t\tlogL')
 
 joint = np.zeros(len(likelihood))
-for like in lhs:
+for like in lhs_unnormed:
     if np.isfinite(like[10]):
         joint += like
+I = 0.
+joint_app = np.exp(joint - joint.max())
+for i in range(len(joint_app)):
+    ji = joint_app[i]
+    if h[i] < 0.5:
+        dh = dh1
+    elif 0.5 <= h[i] < 0.9:
+        dh = dh2
+    elif 0.9 <= h[i] < 2:
+        dh = dh3
+    I += ji*dh
+joint = joint - np.log(I) - joint.max()
 
+percentiles = weighted_quantile(h*100, [0.05, 0.16, 0.50, 0.84, 0.95], sample_weight = np.exp(joint))
+thickness   = [0.4,0.5,1,0.5,0.4]
+
+styles      = ['dotted', 'dashed', 'solid', 'dashed','dotted']
+
+hmax = 100*h[np.where(joint == joint.max())]
+results = ' %.0f^{+%.0f}_{-%.0f}' % (hmax, percentiles[3]-hmax, hmax-percentiles[1])
+
+percentiles[2] = hmax
+title = '$H_0 = '+results+'\ km\\cdot s^{-1}\\cdot Mpc^{-1}$'
 fig = plt.figure()
+fig.suptitle(title)
 ax1 = fig.add_subplot(211)
 ax2 = fig.add_subplot(212)
 for l in lhs:
-    ax1.plot(h*100,np.exp(l), linewidth = 0.3)
+   ax1.plot(h*100,np.exp(l)/100., linewidth = 0.3)
 ax1.axvline(70, linewidth = 0.5, color = 'r')
-ax2.plot(h*100, np.exp(joint), label ='Joint posterior')
-ax2.axvline(70, color = 'r')
+ax2.plot(h*100, np.exp(joint)/100, label ='Joint posterior')
 ax2.legend(loc=0)
 ax2.set_xlabel('$H_0\ [km\\cdot s^{-1}\\cdot Mpc^{-1}]$')
 ax2.set_ylabel('$p(H_0)$')
 ax1.set_ylabel('$p(H_0)$')
 fig.savefig(opts.out+'h_posterior.pdf', bbox_inches='tight')
-# plt.show()
+
+fig2 = plt.figure()
+fig2.suptitle(title)
+ax = fig2.add_subplot(111)
+ax.plot(h*100, np.exp(joint)/100.)
+ax.axvline(70, color = 'r')
+for value, thick, style in  zip(percentiles, thickness, styles):
+    ax.axvline(value, ls = style, linewidth = thick, color = 'black')
+ax.set_xlim(50,90)
+ax.set_xlabel('$H_0\ [km\\cdot s^{-1}\\cdot Mpc^{-1}]$')
+ax.set_ylabel('$p(H_0)$')
+fig2.savefig(opts.out+'h_posterior_tight.pdf', bbox_inches='tight')
+
+
+# completeness = np.genfromtxt(opts.out+'completeness_fraction_1.0.txt', names = True)
+# Nem   = completeness['Nem']
+# N     = completeness['N']
+# gamma = N/Nem
+#
+# fig2 = plt.figure()
+# ax1  = fig2.add_subplot(211)
+# ax2  = fig2.add_subplot(212)
+#
+# gammamax = gamma[np.where(joint == joint.max())]
+#
+# ax1.plot(h*100, gamma)
+# ax1.set_ylabel('$\\gamma(H_0)$')
+# ax1.set_xlabel('$H_0$')
+# ax2.plot(gamma, np.exp(joint)/100.)
+# ax2.axvline(gammamax, ls = '--', color = 'r', label = '$\\gamma = %.2f$'%(gammamax))
+# ax2.set_ylabel('$p(\\gamma)$')
+# ax2.set_xlabel('$\\gamma = N/N_{tot}$')
+# plt.legend(loc=0)
+# plt.tight_layout()
+# fig2.savefig(opts.out+'completeness.pdf', bbox_inches = 'tight')

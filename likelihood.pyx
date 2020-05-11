@@ -39,7 +39,7 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     cdef double p_with_post_dark = 0.
     cdef double p_noemission
     cdef double zmin, zmax, ramin, ramax, decmin, decmax
-    cdef double M_cutoff = -12.
+    cdef double M_cutoff = -13.
     cdef object schechter
     cdef double alpha, Mstar
     cdef int N_em

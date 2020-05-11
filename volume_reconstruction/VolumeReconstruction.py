@@ -511,18 +511,21 @@ def main():
         injection           = None
 
     samples = np.genfromtxt(input_file,names=True)
-    if not ('time' in samples.dtype.names or 'tc' in samples.dtype.names):
-            time = np.ones(len(samples))*np.genfromtxt(options.tfile)
-            samples = append_fields(samples, 'time', time, np.float64)
 
     # we are going to normalise the distance between 0 and 1
+    if 'time' in samples.dtype.names:
+        time_name = 'time'
+    elif 'tc' in samples.dtype.names:
+        time_name = 'tc'
+    elif 't0' in samples.dtype.names:
+        time_name = 't0'
 
     if "dist" in samples.dtype.names:
-        samples = np.column_stack((samples["dist"],samples["dec"],samples["ra"],samples["time"]))
+        samples = np.column_stack((samples["dist"],samples["dec"],samples["ra"],samples[time_name]))
     elif "distance" in samples.dtype.names:
-        samples = np.column_stack((samples["distance"],samples["dec"],samples["ra"],samples["time"]))
+        samples = np.column_stack((samples["distance"],samples["dec"],samples["ra"],samples[time_name]))
     elif "logdistance" in samples.dtype.names:
-        samples = np.column_stack((np.exp(samples["logdistance"]),samples["dec"],samples["ra"],samples["time"]))
+        samples = np.column_stack((np.exp(samples["logdistance"]),samples["dec"],samples["ra"],samples[time_name]))
 
 
 
@@ -656,7 +659,7 @@ def main():
         m.drawmeridians(np.arange(0,360,60), linewidth=0.1, dashes=[1,1], alpha=0.5)
         m.drawmapboundary(linewidth=0.5, fill_color='white')
         X,Y = m(*np.meshgrid(lon_map, lat_map))
-#        plt.scatter(*m(lon_samp, lat_samp), color='k', s=0.1, lw=0)
+        plt.scatter(*m(lon_samp, lat_samp), color='k', s=0.1, lw=0)
         S = m.contourf(X,Y,dpgmm.skymap,100,linestyles='-', hold='on',origin='lower', cmap='YlOrRd', s=2, lw=0, vmin = 0.0)
         if injFile is not None: plt.scatter(*m(lon_inj, lat_inj), color='r', s=500, marker='+')
         plt.savefig(os.path.join(out_dir, 'marg_sky_hammer.pdf'))

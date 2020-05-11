@@ -36,12 +36,14 @@ def gaussian(x, x0, sigma):
 
 if __name__ == '__main__':
 
-    omega = lal.CreateCosmologicalParameters(0.7, 0.3, 0.7, -1, 0, 0)
+    n_ev = 25
+    omega = lal.CreateCosmologicalParameters(1.5, 0.3, 0.7, -1, 0, 0)
     M_max    = -4.
     M_min    = -23.
-    M_cutoff = -12
+    M_mean = -20
+    sigma  = 0.5
     Schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, omega.h)
-    output = 'mockcatalog2/'
+    output = 'mockcatalog_H150/'
     if not os.path.exists(output):
         os.mkdir(output)
     numberdensity = 0.066
@@ -51,6 +53,8 @@ if __name__ == '__main__':
     dCoVolMax = lal.ComovingVolumeElement(z_max,omega)
     pM_max    = Schechter(M_max)
     CoVol = lal.ComovingVolume(omega, z_max) - lal.ComovingVolume(omega, z_min)
+    ev_density = n_ev/CoVol
+    np.savetxt(output+'evdensity.txt', np.array([ev_density]).T, header = 'evdensity')
     N_tot = int(CoVol*numberdensity)
 
     ID      = []
@@ -102,11 +106,15 @@ if __name__ == '__main__':
         appB.append(appM(z_c, B, omega))
         host.append(0)
 
-    for i in range(100):
+    for i in range(n_ev):
         while 1:
             index = rd.randint(0,N_tot-1)
-            if absB[index] < M_cutoff:
+            if absB[index] < -13.:
+                #new_B = rd.gauss(M_mean,sigma)
+                #new_Bapp = appM(z_cosmo[index], new_B, omega)
                 host[index] = 1
+                #absB[index] = new_B
+                #appB[index] = new_Bapp
                 ID_h.append(ID[index])
                 ra_h.append(ra[index])
                 dec_h.append(dec[index])
@@ -127,11 +135,12 @@ if __name__ == '__main__':
     fig_z_cosmo = plt.figure()
     fig_z_pm    = plt.figure()
     fig_M       = plt.figure()
-    fig_sky     = plt.figure()
+    fig_M_hosts = plt.figure()
 
     ax_z_cosmo  = fig_z_cosmo.add_subplot(111)
     ax_z_pm     = fig_z_pm.add_subplot(111)
     ax_M        = fig_M.add_subplot(111)
+    ax_M_hosts  = fig_M_hosts.add_subplot(111)
 
 
     app_z = np.linspace(z_min, z_max, 1000)
@@ -142,14 +151,14 @@ if __name__ == '__main__':
         app_CoVol.append(lal.ComovingVolumeElement(zi, omega)/CoVol)
 
 
-
-
-    app_z_pm = np.linspace(-5*0.001, 5*0.001, 1000)
-    app_M    = np.linspace(M_min, M_max, 1000)
-    app_pM   = []
+    app_z_pm    = np.linspace(-5*0.001, 5*0.001, 1000)
+    app_M       = np.linspace(M_min, M_max, 1000)
+    app_M_hosts = np.linspace(M_mean-4*sigma, M_mean+4*sigma, 1000)
+    app_pM      = []
 
     for Mi in app_M:
-        app_pM.append(Schechter(Mi))
+        ratio = float(n_ev)/float(N_tot)
+        app_pM.append((1-ratio)*Schechter(Mi)+ratio*gaussian(Mi, M_mean, sigma))
 
     ax_z_cosmo.hist(z_cosmo, bins = int(np.sqrt(len(z_cosmo))), density = True)
     ax_z_cosmo.plot(app_z, app_CoVol)
@@ -168,3 +177,9 @@ if __name__ == '__main__':
     ax_M.set_xlabel('$M\ (B\ band)$')
     ax_M.set_ylabel('$p(M)$')
     fig_M.savefig(output+'M.pdf', bbox_inches='tight')
+
+    ax_M_hosts.hist(absB_h, bins = int(np.sqrt(len(absB_h))), density = True)
+    ax_M_hosts.plot(app_M_hosts, gaussian(app_M_hosts, M_mean, sigma))
+    ax_M_hosts.set_xlabel('$M\ (B\ band, hosts)$')
+    ax_M_hosts.set_ylabel('$p(M)$')
+    fig_M_hosts.savefig(output+'M_hosts.pdf', bbox_inches='tight')
