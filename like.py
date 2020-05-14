@@ -108,7 +108,7 @@ if opts.out == None:
 
 h1  = np.linspace(0.3, 0.55, 20, endpoint=False)
 dh1 = (h1.max()-h1.min())/len(h1)
-h2  = np.linspace(0.65, 0.75, 100, endpoint=False)
+h2  = np.linspace(0.69, 0.78, 100, endpoint=False)
 dh2 = (h2.max()-h2.min())/len(h2)
 h3  = np.linspace(0.6, 1.2,  30, endpoint=False)
 dh3 = (h3.max()-h3.min())/len(h3)
