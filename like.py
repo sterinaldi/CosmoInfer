@@ -106,14 +106,15 @@ if opts.out == None:
     if not os.path.exists(opts.out):
         os.mkdir(opts.out)
 
-h1  = np.linspace(0.3, 0.5, 10, endpoint=False)
+h1  = np.linspace(0.3, 0.55, 20, endpoint=False)
 dh1 = (h1.max()-h1.min())/len(h1)
-h2  = np.linspace(0.5, 0.9, 100, endpoint=False)
+h2  = np.linspace(0.65, 0.75, 100, endpoint=False)
 dh2 = (h2.max()-h2.min())/len(h2)
-h3  = np.linspace(0.9, 1.8, 90 , endpoint=False)
+h3  = np.linspace(0.6, 1.2,  30, endpoint=False)
 dh3 = (h3.max()-h3.min())/len(h3)
-h   = np.concatenate((h1,h2,h3))
+# h   = np.concatenate((h1,h2,h3))
 # h = [0.7]
+h = h3
 evcounter    = 0
 lhs          = []
 lhs_unnormed = []
@@ -141,6 +142,7 @@ for e in events:
             dh = dh2
         elif 0.9 <= h[i] < 2:
             dh = dh3
+        dh = dh3
         I += li*dh
     likelihood = likelihood - np.log(I) - likelihood.max()
     lhs.append(np.array(likelihood))
@@ -191,33 +193,33 @@ fig2 = plt.figure()
 fig2.suptitle(title)
 ax = fig2.add_subplot(111)
 ax.plot(h*100, np.exp(joint)/100.)
-ax.axvline(70, color = 'r')
+# ax.axvline(70, color = 'r')
 for value, thick, style in  zip(percentiles, thickness, styles):
     ax.axvline(value, ls = style, linewidth = thick, color = 'black')
-ax.set_xlim(50,90)
+#ax.set_xlim(55,80)
 ax.set_xlabel('$H_0\ [km\\cdot s^{-1}\\cdot Mpc^{-1}]$')
 ax.set_ylabel('$p(H_0)$')
 fig2.savefig(opts.out+'h_posterior_tight.pdf', bbox_inches='tight')
 
 
-# completeness = np.genfromtxt(opts.out+'completeness_fraction_1.0.txt', names = True)
-# Nem   = completeness['Nem']
-# N     = completeness['N']
-# gamma = N/Nem
-#
-# fig2 = plt.figure()
-# ax1  = fig2.add_subplot(211)
-# ax2  = fig2.add_subplot(212)
-#
-# gammamax = gamma[np.where(joint == joint.max())]
-#
-# ax1.plot(h*100, gamma)
-# ax1.set_ylabel('$\\gamma(H_0)$')
-# ax1.set_xlabel('$H_0$')
-# ax2.plot(gamma, np.exp(joint)/100.)
-# ax2.axvline(gammamax, ls = '--', color = 'r', label = '$\\gamma = %.2f$'%(gammamax))
-# ax2.set_ylabel('$p(\\gamma)$')
-# ax2.set_xlabel('$\\gamma = N/N_{tot}$')
-# plt.legend(loc=0)
-# plt.tight_layout()
-# fig2.savefig(opts.out+'completeness.pdf', bbox_inches = 'tight')
+completeness = np.genfromtxt(opts.out+'completeness_fraction_1.0.txt', names = True)
+Nem   = completeness['Nem']
+N     = completeness['N']
+gamma = N/Nem
+
+fig2 = plt.figure()
+ax1  = fig2.add_subplot(211)
+ax2  = fig2.add_subplot(212)
+
+gammamax = gamma[np.where(joint == joint.max())]
+
+ax1.plot(h*100, gamma)
+ax1.set_ylabel('$\\gamma(H_0)$')
+ax1.set_xlabel('$H_0$')
+ax2.plot(gamma, np.exp(joint)/100.)
+ax2.axvline(gammamax, ls = '--', color = 'r', label = '$\\gamma = %.2f$'%(gammamax))
+ax2.set_ylabel('$p(\\gamma)$')
+ax2.set_xlabel('$\\gamma = N/N_{tot}$')
+plt.legend(loc=0)
+plt.tight_layout()
+fig2.savefig(opts.out+'completeness.pdf', bbox_inches = 'tight')

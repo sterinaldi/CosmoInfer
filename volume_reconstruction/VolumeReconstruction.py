@@ -638,31 +638,31 @@ def main():
             plt.savefig(os.path.join(out_dir, 'scores.pdf'))
         except:
             pass
-        from mpl_toolkits.basemap import Basemap,shiftgrid
-        # make an orthographic projection map
-        plt.figure()
-        m = Basemap(projection='ortho', lon_0=round(lon_cen, 2), lat_0=lat_cen, resolution='c')
-        m.drawcoastlines(linewidth=0.5, color='0.5')
-        m.drawparallels(np.arange(-90,90,30), labels=[1,0,0,0], labelstyle='+/-', linewidth=0.1, dashes=[1,1], alpha=0.5)
-        m.drawmeridians(np.arange(0,360,60), linewidth=0.1, dashes=[1,1], alpha=0.5)
-        m.drawmapboundary(linewidth=0.5, fill_color='white')
-        X,Y = m(*np.meshgrid(lon_map, lat_map))
-#        plt.scatter(*m(lon_samp, lat_samp), color='k', s=0.1, lw=0)
-        S = m.contourf(X,Y,dpgmm.skymap,100,linestyles='-', hold='on', origin='lower', cmap='YlOrRd', s=2, lw=0, vmin = 0.0)
-        if injFile is not None: plt.scatter(*m(lon_inj, lat_inj), color='r', s=500, marker='+')
-        plt.savefig(os.path.join(out_dir, 'marg_sky.pdf'))
-
-        plt.figure()
-        m = Basemap(projection='hammer', lon_0=round(lon_cen, 2), lat_0=0, resolution='c')
-        m.drawcoastlines(linewidth=0.5, color='0.5')
-        m.drawparallels(np.arange(-90,90,30), labels=[1,0,0,0], labelstyle='+/-', linewidth=0.1, dashes=[1,1], alpha=0.5)
-        m.drawmeridians(np.arange(0,360,60), linewidth=0.1, dashes=[1,1], alpha=0.5)
-        m.drawmapboundary(linewidth=0.5, fill_color='white')
-        X,Y = m(*np.meshgrid(lon_map, lat_map))
-        plt.scatter(*m(lon_samp, lat_samp), color='k', s=0.1, lw=0)
-        S = m.contourf(X,Y,dpgmm.skymap,100,linestyles='-', hold='on',origin='lower', cmap='YlOrRd', s=2, lw=0, vmin = 0.0)
-        if injFile is not None: plt.scatter(*m(lon_inj, lat_inj), color='r', s=500, marker='+')
-        plt.savefig(os.path.join(out_dir, 'marg_sky_hammer.pdf'))
+#         from mpl_toolkits.basemap import Basemap,shiftgrid
+#         # make an orthographic projection map
+#         plt.figure()
+#         m = Basemap(projection='ortho', lon_0=round(lon_cen, 2), lat_0=lat_cen, resolution='c')
+#         m.drawcoastlines(linewidth=0.5, color='0.5')
+#         m.drawparallels(np.arange(-90,90,30), labels=[1,0,0,0], labelstyle='+/-', linewidth=0.1, dashes=[1,1], alpha=0.5)
+#         m.drawmeridians(np.arange(0,360,60), linewidth=0.1, dashes=[1,1], alpha=0.5)
+#         m.drawmapboundary(linewidth=0.5, fill_color='white')
+#         X,Y = m(*np.meshgrid(lon_map, lat_map))
+# #        plt.scatter(*m(lon_samp, lat_samp), color='k', s=0.1, lw=0)
+#         S = m.contourf(X,Y,dpgmm.skymap,100,linestyles='-', hold='on', origin='lower', cmap='YlOrRd', s=2, lw=0, vmin = 0.0)
+#         if injFile is not None: plt.scatter(*m(lon_inj, lat_inj), color='r', s=500, marker='+')
+#         plt.savefig(os.path.join(out_dir, 'marg_sky.pdf'))
+#
+#         plt.figure()
+#         m = Basemap(projection='hammer', lon_0=round(lon_cen, 2), lat_0=0, resolution='c')
+#         m.drawcoastlines(linewidth=0.5, color='0.5')
+#         m.drawparallels(np.arange(-90,90,30), labels=[1,0,0,0], labelstyle='+/-', linewidth=0.1, dashes=[1,1], alpha=0.5)
+#         m.drawmeridians(np.arange(0,360,60), linewidth=0.1, dashes=[1,1], alpha=0.5)
+#         m.drawmapboundary(linewidth=0.5, fill_color='white')
+#         X,Y = m(*np.meshgrid(lon_map, lat_map))
+#         plt.scatter(*m(lon_samp, lat_samp), color='k', s=0.1, lw=0)
+#         S = m.contourf(X,Y,dpgmm.skymap,100,linestyles='-', hold='on',origin='lower', cmap='YlOrRd', s=2, lw=0, vmin = 0.0)
+#         if injFile is not None: plt.scatter(*m(lon_inj, lat_inj), color='r', s=500, marker='+')
+#         plt.savefig(os.path.join(out_dir, 'marg_sky_hammer.pdf'))
 
         if options.plots:
             if options.catalog:
