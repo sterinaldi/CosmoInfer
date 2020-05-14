@@ -81,7 +81,7 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     for i in range(N):
         # Voglio calcolare, per ogni galassia, le due
         # quantità rilevanti descritte in CosmoInfer.
-        print('Galaxy %d of %d' % (i+1, N))
+        print('Galaxy %d of %d\r' % (i+1, N))
         p_no_post_view[i]   = ComputeLogLhNoPost(hosts[i], omega, zmin, zmax, m_th = m_th, M_cutoff = M_cutoff)
         p_with_post_view[i] = ComputeLogLhWithPost(hosts[i], event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th, M_cutoff = M_cutoff)
     # Calcolo le likelihood anche per una singola dark galaxy
