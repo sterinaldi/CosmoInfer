@@ -114,7 +114,7 @@ h3  = np.linspace(0.6, 1.2,  30, endpoint=False)
 dh3 = (h3.max()-h3.min())/len(h3)
 # h   = np.concatenate((h1,h2,h3))
 # h = [0.7]
-h = h3
+h = h2
 evcounter    = 0
 lhs          = []
 lhs_unnormed = []
@@ -126,8 +126,8 @@ for e in events:
     for hi in h:
         omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
         logL = 0.
-        sys.stdout.write('ev {0} of {1}, h = {2}\r'.format(evcounter, len(events), hi))
-        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 18., Ntot = e.n_tot, completeness_file = opts.out+'completeness_fraction_'+str(e.ID)+'.txt')
+        sys.stdout.write('Event %d of %d, h = %.3f, hmax = %.3f' % (evcounter, len(events), hi, h.max()))
+        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 20., Ntot = e.n_tot, completeness_file = opts.out+'completeness_fraction_'+str(e.ID)+'.txt')
         omega.DestroyCosmologicalParameters()
         likelihood.append(logL)
 
