@@ -9,7 +9,7 @@ import dill as pickle
 from scipy.special import logsumexp
 from scipy.interpolate import interp1d
 from scipy.stats import gaussian_kde
-
+from numba import jit
 import re
 
 def atoi(text):
@@ -22,7 +22,7 @@ def natural_keys(text):
     (See Toothy's implementation in the comments)
     '''
     return [ atoi(c) for c in re.split(r'(\d+)', text) ]
-
+@jit
 def logPosterior(args):
     density,celestial_coordinates = args
     cartesian_vect = celestial_to_cartesian(celestial_coordinates)
