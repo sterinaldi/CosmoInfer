@@ -70,14 +70,14 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     if N_em <= N:
         M = 0
         N_noem = Ntot - N
-        if N_noem < 0:
+        if Ntot < N:
             N_noem = 0
 
-    # if completeness_file is not None:
-    #     file_comp = open(completeness_file, 'a')
-    #     file_comp.write('\n{0}\t{1}\t{2}'.format(N_em, N, M))
-    #     file_comp.close()
-    #
+    if completeness_file is not None:
+        file_comp = open(completeness_file, 'a')
+        file_comp.write('\n{0}\t{1}\t{2}\t{3}'.format(omega.h, N_em, N, M))
+        file_comp.close()
+
     for i in range(N):
         # Voglio calcolare, per ogni galassia, le due
         # quantità rilevanti descritte in CosmoInfer.
@@ -91,8 +91,8 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     if not (N_noem == 0):
         p_noemission     = ComputeLogLhNoEmission(mockgalaxy, omega, zmin, zmax, m_th = m_th, M_cutoff = M_cutoff)
 
-    file_comp = open(completeness_file, 'a')
-    file_comp.write('\n{0}\t{1}\t{2}\t{3}'.format(omega.h, p_no_post_dark, p_with_post_dark, p_noemission))
+    # file_comp = open(completeness_file, 'a')
+    # file_comp.write('\n{0}\t{1}\t{2}\t{3}'.format(omega.h, p_no_post_dark, p_with_post_dark, p_noemission))
 
 
     # Calcolo i termini che andranno sommati tra loro (logaritmi)
@@ -112,9 +112,9 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     cdef double logL = -INFINITY
     for i in range(N):
         logL = log_add(addends_view[i], logL)
-    # if np.isfinite(dark_term):
-    #     for i in range(M):
-    #         logL = log_add(dark_term, logL)
+    if np.isfinite(dark_term):
+        for i in range(M):
+            logL = log_add(dark_term, logL)
     if np.isfinite(logL):
         return logL
     else:

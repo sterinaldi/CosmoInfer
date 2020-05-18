@@ -108,7 +108,7 @@ if opts.out == None:
 
 h1  = np.linspace(0.3, 0.55, 20, endpoint=False)
 dh1 = (h1.max()-h1.min())/len(h1)
-h2  = np.linspace(0.69, 0.78, 100, endpoint=False)
+h2  = np.linspace(0.5, 1.5, 100, endpoint=False)
 dh2 = (h2.max()-h2.min())/len(h2)
 h3  = np.linspace(0.6, 1.2,  30, endpoint=False)
 dh3 = (h3.max()-h3.min())/len(h3)
@@ -119,17 +119,38 @@ evcounter    = 0
 lhs          = []
 lhs_unnormed = []
 
+import multiprocessing as mp
+pool = mp.Pool(4)
+
+
+def calculatelikelihood(args):
+        hi = args[0]
+        e  = args[1]
+        completeness_file = args[2]
+        omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
+        logL = 0.
+        #sys.stdout.write('Event %d of %d, h = %.3f, hmax = %.3f\n' % (evcounter, len(events), hi, h.max()))
+        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 20., Ntot = e.n_tot, completeness_file = completeness_file)
+        omega.DestroyCosmologicalParameters()
+        return logL
+
 for e in events:
     I = 0.
     likelihood = []
     evcounter += 1
-    for hi in h:
-        omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
-        logL = 0.
-        sys.stdout.write('Event %d of %d, h = %.3f, hmax = %.3f\n' % (evcounter, len(events), hi, h.max()))
-        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 20., Ntot = e.n_tot, completeness_file = opts.out+'completeness_fraction_'+str(e.ID)+'.txt')
-        omega.DestroyCosmologicalParameters()
-        likelihood.append(logL)
+    completeness_file = opts.out+'completeness_fraction_'+str(e.ID)+'.txt'
+    f=open(opts.out+'completeness_fraction_'+str(e.ID)+'.txt', 'w')
+    f.write('h Nem N M')
+    f.close()
+    # for hi in h:
+    #     omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
+    #     logL = 0.
+    #     sys.stdout.write('Event %d of %d, h = %.3f, hmax = %.3f\n' % (evcounter, len(events), hi, h.max()))
+    #     logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 20., Ntot = e.n_tot, completeness_file = opts.out+'completeness_fraction_'+str(e.ID)+'.txt')
+    #     omega.DestroyCosmologicalParameters()
+    #     likelihood.append(logL)
+    args = [(hi, e, completeness_file) for hi in h]
+    results = pool.map(calculatelikelihood, args)
 
     likelihood = np.array(likelihood)
     lhs_unnormed.append(np.array(likelihood))
@@ -202,24 +223,24 @@ ax.set_ylabel('$p(H_0)$')
 fig2.savefig(opts.out+'h_posterior_tight.pdf', bbox_inches='tight')
 
 
-# completeness = np.genfromtxt(opts.out+'completeness_fraction_1.0.txt', names = True)
-# Nem   = completeness['Nem']
-# N     = completeness['N']
-# gamma = N/Nem
-#
-# fig2 = plt.figure()
-# ax1  = fig2.add_subplot(211)
-# ax2  = fig2.add_subplot(212)
-#
-# gammamax = gamma[np.where(joint == joint.max())]
-#
-# ax1.plot(h*100, gamma)
-# ax1.set_ylabel('$\\gamma(H_0)$')
-# ax1.set_xlabel('$H_0$')
-# ax2.plot(gamma, np.exp(joint)/100.)
-# ax2.axvline(gammamax, ls = '--', color = 'r', label = '$\\gamma = %.2f$'%(gammamax))
-# ax2.set_ylabel('$p(\\gamma)$')
-# ax2.set_xlabel('$\\gamma = N/N_{tot}$')
-# plt.legend(loc=0)
-# plt.tight_layout()
-# fig2.savefig(opts.out+'completeness.pdf', bbox_inches = 'tight')
+completeness = np.genfromtxt(opts.out+'completeness_fraction_1.0.txt', names = True)
+Nem   = completeness['Nem']
+N     = completeness['N']
+gamma = N/Nem
+
+fig2 = plt.figure()
+ax1  = fig2.add_subplot(211)
+ax2  = fig2.add_subplot(212)
+
+gammamax = gamma[np.where(joint == joint.max())]
+
+ax1.plot(h*100, gamma)
+ax1.set_ylabel('$\\gamma(H_0)$')
+ax1.set_xlabel('$H_0$')
+ax2.plot(gamma, np.exp(joint)/100.)
+ax2.axvline(gammamax, ls = '--', color = 'r', label = '$\\gamma = %.2f$'%(gammamax))
+ax2.set_ylabel('$p(\\gamma)$')
+ax2.set_xlabel('$\\gamma = N/N_{tot}$')
+plt.legend(loc=0)
+plt.tight_layout()
+fig2.savefig(opts.out+'completeness.pdf', bbox_inches = 'tight')
