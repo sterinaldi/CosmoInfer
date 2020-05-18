@@ -81,7 +81,7 @@ def calculatelikelihood(args):
         omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
         logL = 0.
         #sys.stdout.write('Event %d of %d, h = %.3f, hmax = %.3f\n' % (evcounter, len(events), hi, h.max()))
-        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 20., Ntot = e.n_tot, completeness_file = completeness_file)
+        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 18., Ntot = e.n_tot, completeness_file = completeness_file)
         omega.DestroyCosmologicalParameters()
         return logL
 
@@ -155,7 +155,7 @@ if __name__ == '__main__':
         args = [(hi, e, completeness_file) for hi in h]
         results = pool.map(calculatelikelihood, args)
 
-        likelihood = np.array(likelihood)
+        likelihood = np.array(results)
         lhs_unnormed.append(np.array(likelihood))
         likelihood_app = np.exp(likelihood - likelihood.max())
         for i in range(len(likelihood_app)):
@@ -230,12 +230,13 @@ if __name__ == '__main__':
     Nem   = completeness['Nem']
     N     = completeness['N']
     gamma = N/Nem
-
+    h = completeness['h']
     fig2 = plt.figure()
     ax1  = fig2.add_subplot(211)
     ax2  = fig2.add_subplot(212)
-
+    gamma = np.array([x for _,x in sorted(zip(h,gamma))])
     gammamax = gamma[np.where(joint == joint.max())]
+    h.sort()
 
     ax1.plot(h*100, gamma)
     ax1.set_ylabel('$\\gamma(H_0)$')
