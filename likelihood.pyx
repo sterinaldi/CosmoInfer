@@ -59,7 +59,7 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     decmax = event.decmax
 
     schechter, alpha, Mstar = SchechterMagFunction(-23., -6., h = omega.h)
-    N_em = int(Integrate_Schechter(-6., -25., -26., schechter,M_cutoff)*Ntot)
+    N_em = int(Integrate_Schechter(-6., -23., -26., schechter,M_cutoff)*Ntot)
     M = N_em-N
     N_noem = Ntot - N_em
 
@@ -81,7 +81,7 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     for i in range(N):
         # Voglio calcolare, per ogni galassia, le due
         # quantità rilevanti descritte in CosmoInfer.
-        print('Galaxy %d of %d\r' % (i+1, N))
+        #print('Galaxy %d of %d\r' % (i+1, N))
         p_no_post_view[i]   = ComputeLogLhNoPost(hosts[i], omega, zmin, zmax, m_th = m_th, M_cutoff = M_cutoff)
         p_with_post_view[i] = ComputeLogLhWithPost(hosts[i], event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th, M_cutoff = M_cutoff)
     # Calcolo le likelihood anche per una singola dark galaxy
@@ -148,7 +148,7 @@ cdef inline double gaussian(double x, double x0, double sigma) nogil:
 
 
 
-cdef double Integrate_Schechter_gaussian(double z_t, double m_i, double sigma_m, double M_min, double M_max, double M_th, CosmologicalParameters omega, object schechter, double M_cutoff):
+cdef double Integrate_Schechter_gaussian(double z_t, double m_i, double sigma_m, double M_min, double M_max, double m_th, CosmologicalParameters omega, object schechter, double M_cutoff):
     cdef unsigned int n = 100
     cdef np.ndarray[double, ndim=1, mode = "c"] M = np.linspace(M_min, M_max, n, dtype = np.float64)
     cdef double[::1] M_view = M
@@ -156,9 +156,10 @@ cdef double Integrate_Schechter_gaussian(double z_t, double m_i, double sigma_m,
     cdef double I = 0.0
     cdef double M_app
     for i in range(n):
-        if (M_view[i] < M_th) and (M_view[i] < M_cutoff):
-            M_app = appM(z_t, M_view[i], omega)
-            I += gaussian(m_i, M_app, sigma_m)*dM#*schechter(M_view[i])
+        M_app = appM(z_t, M_view[i], omega)
+        if (M_app < m_th) and (M_view[i] < M_cutoff):
+            I += gaussian(m_i, M_app, sigma_m)*dM*schechter(M_view[i])
+            #I += schechter(absM(z_t, m_i, omega))*dM
     return I
 
 cdef double Integrate_Schechter(double M_max, double M_min, double M_th, object schechter, double M_cutoff):
@@ -222,9 +223,9 @@ cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameter
                 rel_sigma = 0.2*z_view[i]
             prop_motion = gaussian(gal.z,z_view[i], rel_sigma)
             CoVolEl = omega.ComovingVolumeElement(z_view[i])/(CoVol)
-            int_magnitude = Integrate_Schechter_gaussian(z_view[i], gal.app_magnitude, gal.dapp_magnitude, M_min, M_max, Mth, omega, Schechter, M_cutoff)
+            int_magnitude = Integrate_Schechter_gaussian(z_view[i], gal.app_magnitude, gal.dapp_magnitude, M_min, M_max, m_th, omega, Schechter, M_cutoff)
             I += dz*exp_post*prop_motion*CoVolEl*int_magnitude*prop_motion*CoVolEl
-        return log(I*gal.weight)
+        return log(I)
     else:
         for i in range(n):
             Mth = absM(z_view[i], m_th, omega)
@@ -234,8 +235,8 @@ cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameter
             prop_motion = 1./(zmax-zmin)
             CoVolEl = omega.ComovingVolumeElement(z_view[i])/(CoVol)
 
-            I += dz*exp_post*prop_motion*CoVolEl*int_magnitude*prop_motion*CoVolEl*(4*np.pi)
-        return log(I*gal.weight)
+            I += dz*exp_post*prop_motion*CoVolEl*int_magnitude*prop_motion*CoVolEl*4*np.pi
+        return log(I)
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -269,7 +270,7 @@ cdef double ComputeLogLhNoPost(Galaxy gal, CosmologicalParameters omega, double 
                 rel_sigma = 0.2*z_view[i]
             prop_motion = gaussian(gal.z,z_view[i], rel_sigma)
             CoVolEl = omega.ComovingVolumeElement(z_view[i])/(CoVol)
-            int_magnitude = Integrate_Schechter_gaussian(z_view[i], gal.app_magnitude, gal.dapp_magnitude, M_min, M_cutoff, Mth, omega, Schechter, M_cutoff)
+            int_magnitude = Integrate_Schechter_gaussian(z_view[i], gal.app_magnitude, gal.dapp_magnitude, M_min, M_cutoff, m_th, omega, Schechter, M_cutoff)
             I += dz*int_magnitude*prop_motion*CoVolEl
         return log(I)
 
@@ -280,7 +281,7 @@ cdef double ComputeLogLhNoPost(Galaxy gal, CosmologicalParameters omega, double 
             int_magnitude = Integrate_Schechter(M_max, M_min, Mth, Schechter, M_cutoff)
             prop_motion = 1./(zmax-zmin)
             CoVolEl = omega.ComovingVolumeElement(z_view[i])/(CoVol)
-            I += dz*int_magnitude*prop_motion*CoVolEl/(4*np.pi)
+            I += dz*int_magnitude*prop_motion*CoVolEl*(4*np.pi)
         return log(I)
 
 cdef double ComputeLogLhNoEmission(Galaxy gal, CosmologicalParameters omega, double zmin, double zmax, double M_cutoff, double m_th = 18, double M_max = -6., double M_min = -23):
@@ -309,5 +310,5 @@ cdef double ComputeLogLhNoEmission(Galaxy gal, CosmologicalParameters omega, dou
         int_magnitude = Integrate_Schechter_above(M_max, M_min, Mth, Schechter, M_cutoff)
         prop_motion = 1./(zmax-zmin)
         CoVolEl = omega.ComovingVolumeElement(z_view[i])/(CoVol)
-        I += dz*int_magnitude*prop_motion*CoVolEl/(4*np.pi)
+        I += dz*int_magnitude*prop_motion*CoVolEl
     return log(I)

@@ -245,6 +245,6 @@ if __name__ == '__main__':
     ax2.axvline(gammamax, ls = '--', color = 'r', label = '$\\gamma = %.2f$'%(gammamax))
     ax2.set_ylabel('$p(\\gamma)$')
     ax2.set_xlabel('$\\gamma = N/N_{tot}$')
-    plt.legend(loc=0)
-    plt.tight_layout()
+    ax2.legend(loc=0)
+    fig2.tight_layout()
     fig2.savefig(opts.out+'completeness.pdf', bbox_inches = 'tight')
