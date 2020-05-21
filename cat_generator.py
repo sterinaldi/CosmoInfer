@@ -36,7 +36,7 @@ def gaussian(x, x0, sigma):
 
 if __name__ == '__main__':
 
-    n_ev = 10
+    n_ev = 15
     omega = lal.CreateCosmologicalParameters(0.7, 0.3, 0.7, -1, 0, 0)
     M_max    = -6.
     M_min    = -23.
@@ -160,28 +160,32 @@ if __name__ == '__main__':
         ratio = float(n_ev)/float(N_tot)
         app_pM.append((1-ratio)*Schechter(Mi)+ratio*gaussian(Mi, M_mean, sigma))
 
-    ax_z_cosmo.hist(z_cosmo, bins = int(np.sqrt(len(z_cosmo))), density = True, color='lightgrey')
-    ax_z_cosmo.plot(app_z, app_CoVol, color = 'black')
+    ax_z_cosmo.hist(z_cosmo, bins = int(np.sqrt(len(z_cosmo))), density = True, color='lightblue', label = '$z_{cosmo}$')
+    ax_z_cosmo.plot(app_z, app_CoVol, color = 'red', linewidth = 0.5, label = '$\\propto dV_{cov}/dz$')
     ax_z_cosmo.set_xlabel('$z_{cosmo}$')
     ax_z_cosmo.set_ylabel('$p(z_{cosmo})$')
+    ax_z_cosmo.legend(loc = 0)
     fig_z_cosmo.savefig(output+'z_cosmo.pdf', bbox_inches='tight')
 
-    ax_z_pm.hist(np.array(z)-np.array(z_cosmo), bins = int(np.sqrt(len(z_cosmo))), density = True, color='lightgrey')
-    ax_z_pm.plot(app_z_pm, gaussian(app_z_pm, 0, 0.001), color = 'black')
+    ax_z_pm.hist(np.array(z)-np.array(z_cosmo), bins = int(np.sqrt(len(z_cosmo))), density = True, color='lightblue', label ='z_{pm}')
+    ax_z_pm.plot(app_z_pm, gaussian(app_z_pm, 0, 0.001), color = 'red', linewidth = 0.5, label = '$\\propto exp((z_{pm})^2/2\\sigma^2)$')
     ax_z_pm.set_xlabel('$z_{pm}$')
     ax_z_pm.set_ylabel('$p(z_{pm})$')
+    ax_z_pm.legend(loc=0)
     fig_z_pm.savefig(output+'z_pm.pdf', bbox_inches='tight')
 
-    ax_M.hist(absB, bins = int(np.sqrt(len(absB))), density = True, color='lightgrey')
-    ax_M.plot(app_M, app_pM, color = 'black')
+    ax_M.hist(absB, bins = int(np.sqrt(len(absB))), density = True, color='lightblue', label = '$M$')
+    ax_M.plot(app_M, app_pM, color = 'red', linewidth = 0.5, label = '$\\propto Sch(M)$')
     ax_M.set_xlabel('$M\ (B\ band)$')
     ax_M.set_ylabel('$p(M)$')
+    ax_M.legend(loc = 0)
     fig_M.savefig(output+'M.pdf', bbox_inches='tight')
 
-    ax_M_hosts.hist(absB_h, bins = int(np.sqrt(len(absB_h))), density = True, color='lightgrey')
-    ax_M_hosts.plot(app_M_hosts, gaussian(app_M_hosts, M_mean, sigma), color = 'black')
+    ax_M_hosts.hist(absB_h, bins = int(np.sqrt(len(absB_h))), density = True, color='lightblue', label = '$M$')
+    #ax_M_hosts.plot(app_M_hosts, gaussian(app_M_hosts, M_mean, sigma), color = 'red', linewidth = 0.5, label = '$f(M)$')
     ax_M_hosts.set_xlabel('$M\ (B\ band, hosts)$')
     ax_M_hosts.set_ylabel('$p(M)$')
+    ax_M_hosts.legend(loc=0)
     fig_M_hosts.savefig(output+'M_hosts.pdf', bbox_inches='tight')
 
     z_em = []
@@ -192,7 +196,7 @@ if __name__ == '__main__':
             if Bi < 18.:
                 z_det.append(zi)
 
-    N_em, bins, other = plt.hist(z_em, bins = int(np.sqrt(len(z_em))))
+    N_em, bins, other = plt.hist(z_em, bins = 100)# int(np.sqrt(len(z_em))))
 
     N_det, bins, other = plt.hist(z_det, bins = bins)
 
@@ -208,6 +212,6 @@ if __name__ == '__main__':
     ax_compl = fig_completeness.add_subplot(111)
     ax_compl.plot(reds,gamma)
     ax_compl.set_xlabel('$z$')
-    ax_compl.set_ylabel('$\\gamma$')
+    ax_compl.set_ylabel('$\\gamma(z)$')
     ax_compl.set_xlim(0,0.04)
     fig_completeness.savefig(output+'completeness_z.pdf', bbox_inches='tight')
