@@ -36,14 +36,14 @@ def gaussian(x, x0, sigma):
 
 if __name__ == '__main__':
 
-    n_ev = 100
+    n_ev = 25
     omega = lal.CreateCosmologicalParameters(0.7, 0.3, 0.7, -1, 0, 0)
     M_max    = -4.
     M_min    = -23.
-    M_mean = -20
+    M_mean = -15.
     sigma  = 0.5
     Schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, omega.h)
-    output = 'upsidedown_sch/'
+    output = 'upsidedown3/'
     if not os.path.exists(output):
         os.mkdir(output)
     numberdensity = 0.066
@@ -108,11 +108,11 @@ if __name__ == '__main__':
 
     for i in range(n_ev):
         index = rd.randint(0,N_tot-1)
-        #new_B = rd.gauss(M_mean,sigma)
-        #new_Bapp = appM(z_cosmo[index], new_B, omega)
+        new_B = rd.gauss(M_mean,sigma)
+        new_Bapp = appM(z_cosmo[index], new_B, omega)
         host[index] = 1
-        #absB[index] = new_B
-        #appB[index] = new_Bapp
+        absB[index] = new_B
+        appB[index] = new_Bapp
         ID_h.append(ID[index])
         ra_h.append(ra[index])
         dec_h.append(dec[index])
@@ -175,8 +175,9 @@ if __name__ == '__main__':
     ax_M.set_ylabel('$p(M)$')
     fig_M.savefig(output+'M.pdf', bbox_inches='tight')
 
-    ax_M_hosts.hist(absB_h, bins = int(np.sqrt(len(absB_h))), density = True)
-    ax_M_hosts.plot(app_M_hosts, gaussian(app_M_hosts, M_mean, sigma))
+    ax_M_hosts.hist(absB_h, bins = int(np.sqrt(len(absB_h))), density = True, color = 'lightblue', label = '$M$')
+    ax_M_hosts.plot(app_M_hosts, gaussian(app_M_hosts, M_mean, sigma), color = 'red', linewidth = 0.5, label = '$\\propto exp(-(M-\\mu)^2/2\\sigma^2)$')
     ax_M_hosts.set_xlabel('$M\ (B\ band, hosts)$')
     ax_M_hosts.set_ylabel('$p(M)$')
+    ax_M_hosts.legend(loc=0)
     fig_M_hosts.savefig(output+'M_hosts.pdf', bbox_inches='tight')

@@ -76,7 +76,7 @@ class Event_test(object):
         self.n_hosts                = len(self.potential_galaxy_hosts)
 
         self.cl      = np.genfromtxt(levels_file, names = True)
-        self.vol_90  = self.cl['volume']
+        self.vol_90  = self.cl['volume']*0.7
         self.area_90 = self.cl['area']
         self.LDmin   = self.cl['LD_min']
         self.LDmax   = self.cl['LD_max']

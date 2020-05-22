@@ -116,7 +116,7 @@ cdef inline double appM(double z, double M, CosmologicalParameters omega):
 cdef inline double gaussian(double x, double x0, double sigma) nogil:
     return exp(-(x-x0)**2/(2*sigma**2))/(sigma*sqrt(2*M_PI))
 
-cdef double integrate_magnitude_source(object e, double m_i, double dm_i, double z_cosmo, CosmologicalParameters omega, int visibility, float m_th = 30., float M_max = 0., float M_min = -23.):
+cdef double integrate_magnitude_source(object e, double m_i, double dm_i, double z_cosmo, CosmologicalParameters omega, int visibility, float m_th=18., float M_max = 0., float M_min = -23.):
 
     cdef unsigned int i, n = 100
     cdef double I = 0.
@@ -131,13 +131,13 @@ cdef double integrate_magnitude_source(object e, double m_i, double dm_i, double
     for i in range(n):
         m_app = appM(z_cosmo, M_view[i], omega)
         if visibility: # and m_app < m_th :
-            # I += gaussian(m_i, m_app, dm_i)*e.mag_dist(M_view[i])*dM
-            I += e.mag_dist(absM(z_cosmo, m_i, omega))*dM/(M_max-M_min)
+            I += gaussian(m_i, m_app, dm_i)*e.mag_dist(M_view[i])*dM
+            # I += e.mag_dist(absM(z_cosmo, m_i, omega))*dM/(M_max-M_min)
         elif not visibility and m_app > m_th:
             I += e.mag_dist(M_view[i])*dM/(appM(z_cosmo, M_max, omega)-appM(z_cosmo, M_min, omega))
     return I
 
-cdef double integrate_magnitude_background(object e, double m_i, double dm_i, double z_cosmo, CosmologicalParameters omega, double N_sources, double N_back, double visibility = 0, M_max = 0., double M_min = -23., double m_th = 30.):
+cdef double integrate_magnitude_background(object e, double m_i, double dm_i, double z_cosmo, CosmologicalParameters omega, double N_sources, double N_back, double visibility = 0, M_max = 0., double M_min = -23., double m_th = 18.):
 
     cdef unsigned int i, n = 100
     cdef double I = 0.
@@ -200,7 +200,7 @@ cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameter
                 rel_sigma = 0.2*z_view[i]
             prop_motion = gaussian(gal.z,z_view[i], rel_sigma)
             CoVolEl = omega.ComovingVolumeElement(z_view[i])/(CoVol)
-            int_magnitude = integrate_magnitude_source(event, gal.app_magnitude, gal.dapp_magnitude, z_view[i], omega, visibility = 1)
+            int_magnitude = integrate_magnitude_source(event, gal.app_magnitude, gal.dapp_magnitude, z_view[i], omega, visibility = 1, m_th= m_th)
             I += dz*exp_post*prop_motion*CoVolEl*int_magnitude*prop_motion*CoVolEl
         return log(I)
 
