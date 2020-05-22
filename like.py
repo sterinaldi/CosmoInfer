@@ -120,8 +120,8 @@ if __name__ == '__main__':
         if not os.path.exists(opts.out):
             os.mkdir(opts.out)
 
-    h  = np.linspace(0.67, 0.79, 150, endpoint=False)
-    dh = (h1.max()-h1.min())/len(h1)
+    h  = np.linspace(0.67, 0.8, 150, endpoint=False)
+    dh = (h.max()-h.min())/len(h)
 
     evcounter    = 0
     lhs          = []
