@@ -149,7 +149,7 @@ cdef inline double gaussian(double x, double x0, double sigma) nogil:
 
 
 cdef double Integrate_Schechter_gaussian(double z_t, double m_i, double sigma_m, double M_min, double M_max, double m_th, CosmologicalParameters omega, object schechter, double M_cutoff):
-    cdef unsigned int n = 100
+    cdef unsigned int n = 1000
     cdef np.ndarray[double, ndim=1, mode = "c"] M = np.linspace(M_min, M_max, n, dtype = np.float64)
     cdef double[::1] M_view = M
     cdef double dM = (M_max-M_min)/n
@@ -191,7 +191,7 @@ cdef double Integrate_Schechter_above(double M_max, double M_min, double M_th, o
 
 cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameters omega, double zmin, double zmax, double ramin, double ramax, double decmin, double decmax, double M_cutoff, double m_th = 18., double M_max = -6., double M_min = -23):
 
-    cdef unsigned int i, n = 100
+    cdef unsigned int i, n = 1000
     cdef double mag_int
     cdef double LD_i
 
@@ -243,7 +243,7 @@ cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameter
 @cython.nonecheck(False)
 @cython.cdivision(True)
 cdef double ComputeLogLhNoPost(Galaxy gal, CosmologicalParameters omega, double zmin, double zmax, double M_cutoff, double m_th = 18., double M_max = -6., double M_min = -23.):
-    cdef unsigned int i, n = 100
+    cdef unsigned int i, n = 1000
     cdef double mag_int
     cdef double LD_i
 

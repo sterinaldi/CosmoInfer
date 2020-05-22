@@ -81,7 +81,7 @@ def calculatelikelihood(args):
         omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
         logL = 0.
         #sys.stdout.write('Event %d of %d, h = %.3f, hmax = %.3f\n' % (evcounter, len(events), hi, h.max()))
-        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 18., Ntot = e.n_tot, completeness_file = completeness_file)
+        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 20., Ntot = e.n_tot, completeness_file = completeness_file)
         omega.DestroyCosmologicalParameters()
         return logL
 
@@ -120,15 +120,9 @@ if __name__ == '__main__':
         if not os.path.exists(opts.out):
             os.mkdir(opts.out)
 
-    h1  = np.linspace(0.3, 0.55, 20, endpoint=False)
-    dh1 = (h1.max()-h1.min())/len(h1)
-    h2  = np.linspace(0.5, 1.5, 100, endpoint=False)
-    dh2 = (h2.max()-h2.min())/len(h2)
-    h3  = np.linspace(0.6, 1.2,  30, endpoint=False)
-    dh3 = (h3.max()-h3.min())/len(h3)
-    # h   = np.concatenate((h1,h2,h3))
-    # h = [0.7]
-    h = h2
+    h  = np.linspace(0.67, 0.79, 150, endpoint=False)
+    dh = (h1.max()-h1.min())/len(h1)
+
     evcounter    = 0
     lhs          = []
     lhs_unnormed = []
@@ -160,13 +154,6 @@ if __name__ == '__main__':
         likelihood_app = np.exp(likelihood - likelihood.max())
         for i in range(len(likelihood_app)):
             li = likelihood_app[i]
-            if h[i] < 0.5:
-                dh = dh1
-            elif 0.5 <= h[i] < 0.9:
-                dh = dh2
-            elif 0.9 <= h[i] < 2:
-                dh = dh3
-            dh = dh3
             I += li*dh
         likelihood = likelihood - np.log(I) - likelihood.max()
         lhs.append(np.array(likelihood))
@@ -180,12 +167,6 @@ if __name__ == '__main__':
     joint_app = np.exp(joint - joint.max())
     for i in range(len(joint_app)):
         ji = joint_app[i]
-        if h[i] < 0.5:
-            dh = dh1
-        elif 0.5 <= h[i] < 0.9:
-            dh = dh2
-        elif 0.9 <= h[i] < 2:
-            dh = dh3
         I += ji*dh
     joint = joint - np.log(I) - joint.max()
 
@@ -219,7 +200,7 @@ if __name__ == '__main__':
     ax.plot(h*100, np.exp(joint)/100.)
     # ax.axvline(70, color = 'r')
     for value, thick, style in  zip(percentiles, thickness, styles):
-        ax.axvline(value, ls = style, linewidth = thick, color = 'black')
+        ax.axvline(value, ls = style, linewidth = thick, color = 'darkblue')
     #ax.set_xlim(55,80)
     ax.set_xlabel('$H_0\ [km\\cdot s^{-1}\\cdot Mpc^{-1}]$')
     ax.set_ylabel('$p(H_0)$')
