@@ -8,6 +8,7 @@ from volume_reconstruction.utils.utils import *
 import dill as pickle
 from scipy.special import logsumexp
 from scipy.interpolate import interp1d
+from schechter import *
 
 import re
 
@@ -109,9 +110,17 @@ class Event_test(object):
         self.potential_galaxy_hosts = catalog_weight(self.potential_galaxy_hosts, weight = 'uniform', ngal = self.n_tot)
         self.N_events = int(ev_density*self.vol_90)
 
+
+
     def mag_dist(self, M):
         # gaussiana con mag_params = [mu,sigma]
-        return gaussian(M, self.mag_params[0], self.mag_params[1])
+        #return gaussian(M, self.mag_params[0], self.mag_params[1])
+
+        if M > self.mag_params[0]:
+            return 0.00001
+        else:
+            Schechter, alpha, Mstar = SchechterMagFunction(-23, self.mag_params[0], h=0.7)
+            return Schechter(M)
 
     def logP(self, galaxy):
         '''

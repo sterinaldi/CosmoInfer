@@ -40,10 +40,11 @@ if __name__ == '__main__':
     omega = lal.CreateCosmologicalParameters(0.7, 0.3, 0.7, -1, 0, 0)
     M_max    = -4.
     M_min    = -23.
-    M_mean = -15.
+    M_mean = -20.
     sigma  = 0.5
+    M_cutoff = -15.
     Schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, omega.h)
-    output = 'upsidedown3/'
+    output = 'upsidedown_mth/'
     if not os.path.exists(output):
         os.mkdir(output)
     numberdensity = 0.066

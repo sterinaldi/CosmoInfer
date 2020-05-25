@@ -61,6 +61,7 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     if  Ntot < N:
         M = 0
 
+    M = 0
     for i in range(N):
 
         # Voglio calcolare, per ogni galassia, le due
@@ -98,6 +99,7 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     if np.isfinite(dark_term):
         for i in range(M):
             logL = log_add(dark_term, logL)
+    print('return: {0}'.format(logL))
     return logL
 
 cdef inline double absM(double z, double m, CosmologicalParameters omega):
@@ -202,8 +204,10 @@ cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameter
             CoVolEl = omega.ComovingVolumeElement(z_view[i])/(CoVol)
             int_magnitude = integrate_magnitude_source(event, gal.app_magnitude, gal.dapp_magnitude, z_view[i], omega, visibility = 1, m_th= m_th)
             I += dz*exp_post*prop_motion*CoVolEl*int_magnitude*prop_motion*CoVolEl
-        return log(I)
-
+        if I > 0:
+            return log(I)
+        else:
+            return -np.inf
     else:
         for i in range(n):
             LD_i = omega.LuminosityDistance(z_view[i])
@@ -212,7 +216,10 @@ cdef double ComputeLogLhWithPost(Galaxy gal, object event, CosmologicalParameter
             prop_motion = 1./(zmax-zmin)
             CoVolEl = omega.ComovingVolumeElement(z_view[i])/(CoVol)
             I += dz*exp_post*prop_motion*CoVolEl*int_magnitude*prop_motion*CoVolEl*(4*np.pi)
-        return log(I)
+        if I > 0:
+            return log(I)
+        else:
+            return -np.inf
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -251,7 +258,11 @@ cdef double ComputeLogLhNoPost(Galaxy gal, object event, CosmologicalParameters 
             CoVolEl = omega.ComovingVolumeElement(z_view[i])/(CoVol)
             int_magnitude = integrate_magnitude_background(event, gal.app_magnitude, gal.dapp_magnitude, z_view[i], omega, N_sources, N_back, visibility = 1)
             I += dz*exp_post*prop_motion*CoVolEl*int_magnitude*prop_motion*CoVolEl
-        return log(I)
+
+        if I > 0:
+            return log(I)
+        else:
+            return -np.inf
 
     else:
         for i in range(n):
@@ -261,4 +272,7 @@ cdef double ComputeLogLhNoPost(Galaxy gal, object event, CosmologicalParameters 
             prop_motion = 1./(zmax-zmin)
             CoVolEl = omega.ComovingVolumeElement(z_view[i])/(CoVol)
             I += dz*exp_post*prop_motion*CoVolEl*int_magnitude*prop_motion*CoVolEl*(4*np.pi)
-        return log(I)
+        if I > 0:
+            return log(I)
+        else:
+            return -np.inf

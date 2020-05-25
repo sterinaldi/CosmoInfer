@@ -75,7 +75,7 @@ if opts.out == None:
         os.mkdir(opts.out)
 
 fixed_sigma = 0.5
-M_mu = np.linspace(-23,-1,100)
+M_mu = np.linspace(-22,-1,100)
 dM_mu = (M_mu.max()-M_mu.min())/len(M_mu)
 # h = [0.7]
 evcounter = 0
@@ -117,8 +117,8 @@ ax1.axvline(-20., linewidth = 0.5, color = 'r')
 ax2.plot(M_mu, np.exp(joint), label ='Joint posterior')
 ax2.axvline(-20., color = 'r')
 ax2.legend(loc=0)
-ax1.set_xlabel('$\\mu$')
-ax2.set_ylabel('$p(\\mu)$')
-ax2.set_ylabel('$p(\\mu)$')
-fig.savefig(opts.out+'mu_posterior.pdf', bbox_inches='tight')
+ax1.set_xlabel('$M_{cutoff}$')
+ax2.set_ylabel('$p(M_{cutoff})$')
+ax2.set_ylabel('$p(M_{cutoff})$')
+fig.savefig(opts.out+'cutoff_posterior.pdf', bbox_inches='tight')
 plt.show()
