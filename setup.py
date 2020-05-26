@@ -29,13 +29,14 @@ ext_modules=[
              Extension("schechter",
                        sources=["schechter_function.pyx"],
                        libraries=["m"], # Unix-like specific
+                       extra_compile_args=["-O3","-ffast-math"],
                        include_dirs=[numpy.get_include()]
                        )
              ]
 
 setup(
       name = "schechter",
-      ext_modules = cythonize(ext_modules),
+      ext_modules = cythonize(ext_modules, language_level = "3"),
       include_dirs=[numpy.get_include()]
       )
 
@@ -44,12 +45,13 @@ ext_modules=[
                        sources=["likelihood.pyx"],
                        libraries=["m","lal"], # Unix-like specific
                        library_dirs = [lal_libs],
+                       extra_compile_args=["-O3","-ffast-math"],
                        include_dirs=[numpy.get_include(),lal_includes,"./"]
                        )
              ]
 setup(
       name = "likelihood",
-      ext_modules = cythonize(ext_modules),
+      ext_modules = cythonize(ext_modules, language_level = "3"),
       include_dirs=[numpy.get_include(),lal_includes,"./"]
       )
 
@@ -58,12 +60,13 @@ ext_modules=[
                        sources=["cosmology.pyx"],
                        libraries=["m","lal"], # Unix-like specific
                        library_dirs = [lal_libs],
+                       extra_compile_args=["-O3","-ffast-math"],
                        include_dirs=[numpy.get_include(),lal_includes,"./"]
                        )
              ]
 setup(
       name = "cosmology",
-      ext_modules = cythonize(ext_modules),
+      ext_modules = cythonize(ext_modules, language_level = "3"),
       include_dirs=[numpy.get_include(),lal_includes,"./"]
       )
 
@@ -71,12 +74,13 @@ ext_modules=[
              Extension("galaxy",
                        sources=["galaxy.pyx"],
                        libraries=["m"], # Unix-like specific
+                       extra_compile_args=["-O3","-ffast-math"],
                        include_dirs=[numpy.get_include(),"./"]
                        )
              ]
 setup(
       name = "galaxy",
-      ext_modules = cythonize(ext_modules),
+      ext_modules = cythonize(ext_modules, language_level = "3"),
       include_dirs=[numpy.get_include(),"./"]
       )
 
@@ -87,11 +91,13 @@ ext_modules=[
              Extension("volume_reconstruction.utils.cumulative",
                        sources=["volume_reconstruction/utils/cumulative.pyx"],
                        libraries=["m"], # Unix-like specific
+                       extra_compile_args=["-O3","-ffast-math"],
                        include_dirs=[numpy.get_include(),"volume_reconstruction"]
                        ),
              Extension("volume_reconstruction.utils.utils",
                        sources=["volume_reconstruction/utils/utils.pyx"],
                        libraries=["m"], # Unix-like specific
+                       extra_compile_args=["-O3","-ffast-math"],
                        include_dirs=[numpy.get_include(),"volume_reconstruction"]
                        )
              ]
