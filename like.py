@@ -101,12 +101,17 @@ for like in lhs:
     if np.isfinite(like[0]):
         joint += like
 
+joint_app = joint-joint.max()
+I = 0.
+for ji in joint_app:
+    I += ji*dM_mu
+joint = joint - np.log(I) - joint.max()
+
 fig = plt.figure()
 ax1 = fig.add_subplot(211)
 ax2 = fig.add_subplot(212)
 for l in lhs:
-    if l[-1] < 0.1:
-        ax1.plot(M_mu,np.exp(l), linewidth = 0.3)
+    ax1.plot(M_mu,np.exp(l), linewidth = 0.3)
 ax1.axvline(-20., linewidth = 0.5, color = 'r')
 ax2.plot(M_mu, np.exp(joint), label ='Joint posterior')
 ax2.axvline(-20., color = 'r')
