@@ -96,8 +96,9 @@ for e in events:
 
     np.savetxt(opts.out+'likelihood_'+str(e.ID)+'.txt', np.array([M_mu, likelihood]).T, header = 'M_mu\t\tlogL')
     likelihood = np.array(likelihood)
+    lhs.append(likelihood)
 joint = np.zeros(len(likelihood))
-for like in lhs:
+for like in likelihoo:
     if np.isfinite(like[0]):
         joint += like
 
