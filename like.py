@@ -94,17 +94,11 @@ for e in events:
         logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 99., e.n_tot, e.N_events, completeness_file = None)
         likelihood.append(logL)
 
-    likelihood = np.array(likelihood)
-    likelihood_app = np.exp(likelihood - likelihood.max())
-    for li in likelihood_app:
-        I += li*dM_mu
-    likelihood = likelihood - np.log(I) - likelihood.max()
-    lhs.append(np.array(likelihood))
     np.savetxt(opts.out+'likelihood_'+str(e.ID)+'.txt', np.array([M_mu, likelihood]).T, header = 'M_mu\t\tlogL')
-
+    likelihood = np.array(likelihood)
 joint = np.zeros(len(likelihood))
 for like in lhs:
-    if like[-1] < 0.1:
+    if np.isfinite(like[0]):
         joint += like
 
 fig = plt.figure()
