@@ -98,7 +98,7 @@ for e in events:
     likelihood = np.array(likelihood)
     lhs.append(likelihood)
 joint = np.zeros(len(likelihood))
-for like in likelihood:
+for like in lhs:
     if np.isfinite(like[0]):
         joint += like
 
