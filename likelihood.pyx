@@ -61,7 +61,6 @@ cpdef double logLikelihood_single_event(list hosts, object event, CosmologicalPa
     if  Ntot < N:
         M = 0
 
-    M = 0
     for i in range(N):
 
         # Voglio calcolare, per ogni galassia, le due
@@ -120,7 +119,7 @@ cdef inline double gaussian(double x, double x0, double sigma) nogil:
 
 cdef double integrate_magnitude_source(object e, double m_i, double dm_i, double z_cosmo, CosmologicalParameters omega, int visibility, float m_th=18., float M_max = 0., float M_min = -23.):
 
-    cdef unsigned int i, n = 100
+    cdef unsigned int i, n = 1000
     cdef double I = 0.
     cdef np.ndarray[double, ndim = 1, mode = 'c'] M = np.linspace(M_min, M_max, n, dtype = np.float64)
     cdef double[::1] M_view = M
@@ -133,7 +132,7 @@ cdef double integrate_magnitude_source(object e, double m_i, double dm_i, double
     for i in range(n):
         m_app = appM(z_cosmo, M_view[i], omega)
         if visibility: # and m_app < m_th :
-            I += gaussian(m_i, m_app, dm_i)*e.mag_dist(M_view[i])*dM
+            I += gaussian(m_i, m_app, dm_i)*e.mag_dist(M_view[i])*dM/(appM(z_cosmo, M_max, omega)-appM(z_cosmo, M_min, omega))
             # I += e.mag_dist(absM(z_cosmo, m_i, omega))*dM/(M_max-M_min)
         elif not visibility and m_app > m_th:
             I += e.mag_dist(M_view[i])*dM/(appM(z_cosmo, M_max, omega)-appM(z_cosmo, M_min, omega))

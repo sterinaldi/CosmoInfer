@@ -82,21 +82,22 @@ evcounter = 0
 lhs = []
 omega = cs.CosmologicalParameters(0.7,0.3,0.7,-1,0)
 
+
 for e in events:
     I = 0.
-    likelihood = []
     evcounter += 1
+    likelihood = []
     for mu in M_mu:
+        logL = 0.
         pars = [mu, fixed_sigma]
         e.mag_params = pars
-        logL = 0.
         sys.stdout.write('ev {0} of {1}, mu = {2}\r'.format(evcounter, len(events), mu))
-        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 99., e.n_tot, e.N_events, completeness_file = None)
+        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 18., e.n_tot, e.N_events, completeness_file = None)
         likelihood.append(logL)
-
-    np.savetxt(opts.out+'likelihood_'+str(e.ID)+'.txt', np.array([M_mu, likelihood]).T, header = 'M_mu\t\tlogL')
     likelihood = np.array(likelihood)
     lhs.append(likelihood)
+    np.savetxt(opts.out+'likelihood_'+str(e.ID)+'.txt', np.array([M_mu, likelihood]).T, header = 'M_mu\t\tlogL')
+
 joint = np.zeros(len(likelihood))
 for like in lhs:
     if np.isfinite(like[0]):

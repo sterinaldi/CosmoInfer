@@ -113,14 +113,14 @@ class Event_test(object):
 
 
     def mag_dist(self, M):
-        # gaussiana con mag_params = [mu,sigma]
-        #return gaussian(M, self.mag_params[0], self.mag_params[1])
+        # #gaussiana con mag_params = [mu,sigma]
+        return gaussian(M, self.mag_params[0], self.mag_params[1])
 
-        if M > self.mag_params[0]:
-            return 0.00001
-        else:
-            Schechter, alpha, Mstar = SchechterMagFunction(-23, self.mag_params[0], h=0.7)
-            return Schechter(M)
+        # if M > self.mag_params[0]:
+        #     return 0.00001
+        # else:
+        #     Schechter, alpha, Mstar = SchechterMagFunction(-23, self.mag_params[0], h=0.7)
+        #     return Schechter(M)
 
     def logP(self, galaxy):
         '''
