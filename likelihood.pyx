@@ -14,7 +14,7 @@ from galaxy cimport Galaxy
 from cosmology cimport CosmologicalParameters
 import itertools as it
 import sys
-
+import ray
 
 cdef inline double log_add(double x, double y): return x+log(1.0+exp(y-x)) if x >= y else y+log(1.0+exp(x-y))
 cdef inline double linear_density(double x, double a, double b): return a+log(x)*b

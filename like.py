@@ -7,7 +7,7 @@ from functools import reduce
 from scipy.stats import norm
 import unittest
 import lal
-import cpnest.model
+# import cpnest.model
 import sys
 import os
 import readdata
@@ -20,6 +20,7 @@ import likelihood as lk
 import matplotlib.pyplot as plt
 from displaypost import plot_post
 import math
+import ray
 
 def weighted_quantile(values, quantiles, sample_weight=None,
                       values_sorted=False, old_style=False):
@@ -73,9 +74,10 @@ def RedshiftCalculation(LD, omega, zinit=0.3, limit = 0.001):
     znew = zinit - (LD_test - LD)/dLumDist(zinit,omega)
     return RedshiftCalculation(LD, omega, zinit = znew)
 
-
+@ray.remote
 def calculatelikelihood(args):
         hi = args[0]
+        print(hi)
         e  = args[1]
         completeness_file = args[2]
         omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
@@ -112,7 +114,7 @@ if __name__ == '__main__':
     parser.add_option('--EMcp',              default=0, type='int', metavar='EMcp', help='Electromagnetic counterpart')
     (opts,args)=parser.parse_args()
 
-
+    ray.init()
     events = readdata.read_event(opts.event_class, input_folder = opts.data, emcp = opts.EMcp, nevmax = opts.nevmax)
 
     if opts.out == None:
@@ -120,15 +122,15 @@ if __name__ == '__main__':
         if not os.path.exists(opts.out):
             os.mkdir(opts.out)
 
-    h  = np.linspace(0.67, 0.8, 150, endpoint=False)
+    h  = np.linspace(0.67, 0.8, 20, endpoint=False)
     dh = (h.max()-h.min())/len(h)
 
     evcounter    = 0
     lhs          = []
     lhs_unnormed = []
 
-    import multiprocessing as mp
-    pool = mp.Pool(4)
+    # import multiprocessing as mp
+    # pool = mp.Pool(4)
 
 
     for e in events:
@@ -147,7 +149,11 @@ if __name__ == '__main__':
         #     omega.DestroyCosmologicalParameters()
         #     likelihood.append(logL)
         args = [(hi, e, completeness_file) for hi in h]
-        results = pool.map(calculatelikelihood, args)
+        # results = pool.map(calculatelikelihood, args)
+
+        futures = [calculatelikelihood.remote((hi, e, completeness_file)) for hi in h]
+
+        results = ray.get(futures)
 
         likelihood = np.array(results)
         lhs_unnormed.append(np.array(likelihood))
