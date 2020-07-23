@@ -19,6 +19,7 @@ import ray
 cdef inline double log_add(double x, double y): return x+log(1.0+exp(y-x)) if x >= y else y+log(1.0+exp(x-y))
 cdef inline double linear_density(double x, double a, double b): return a+log(x)*b
 
+@ray.remote
 def logLikelihood_single_event(list hosts, object event, CosmologicalParameters omega, double m_th, int Ntot, int EMcp = 0, str completeness_file = None):
     return _logLikelihood_single_event(hosts, event, omega, m_th, Ntot, EMcp = EMcp, completeness_file = completeness_file)
 

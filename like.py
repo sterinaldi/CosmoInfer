@@ -141,19 +141,17 @@ if __name__ == '__main__':
         f=open(opts.out+'completeness_fraction_'+str(e.ID)+'.txt', 'w')
         f.write('h Nem N M')
         f.close()
-        # for hi in h:
-        #     omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
-        #     logL = 0.
-        #     sys.stdout.write('Event %d of %d, h = %.3f, hmax = %.3f\n' % (evcounter, len(events), hi, h.max()))
-        #     logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 20., Ntot = e.n_tot, completeness_file = opts.out+'completeness_fraction_'+str(e.ID)+'.txt')
-        #     omega.DestroyCosmologicalParameters()
-        #     likelihood.append(logL)
-        args = [(hi, e, completeness_file) for hi in h]
+        for hi in h:
+            omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
+            logL = 0.
+            sys.stdout.write('Event %d of %d, h = %.3f, hmax = %.3f\n' % (evcounter, len(events), hi, h.max()))
+            logL += ray.get(lk.logLikelihood_single_event.remote(e.potential_galaxy_hosts, e, omega, 20., Ntot = e.n_tot, completeness_file = opts.out+'completeness_fraction_'+str(e.ID)+'.txt'))
+            omega.DestroyCosmologicalParameters()
+            likelihood.append(logL)
+        # args = [(hi, e, completeness_file) for hi in h]
         # results = pool.map(calculatelikelihood, args)
-
-        futures = [calculatelikelihood.remote((hi, e, completeness_file)) for hi in h]
-
-        results = ray.get(futures)
+        # futures = [calculatelikelihood.remote((hi, e, completeness_file)) for hi in h]
+        # results = ray.get(futures)
 
         likelihood = np.array(results)
         lhs_unnormed.append(np.array(likelihood))
