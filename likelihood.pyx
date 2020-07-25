@@ -10,6 +10,7 @@ from scipy.special import logsumexp
 from scipy.optimize import newton
 from schechter import *
 from scipy.integrate import quad
+from scipy.stats cimport poisson
 from galaxy cimport Galaxy
 from cosmology cimport CosmologicalParameters
 import itertools as it
@@ -28,7 +29,7 @@ def logLikelihood_single_event(list hosts, object event, CosmologicalParameters 
 @cython.nonecheck(False)
 @cython.cdivision(True)
 
-cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalParameters omega, double m_th, int Ntot, int EMcp = 0, str completeness_file = None):
+cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalParameters omega, double m_th, int avg_Ntot, int EMcp = 0, str completeness_file = None):
 
     cdef unsigned int i
     cdef unsigned int N = len(hosts)
@@ -43,14 +44,14 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
     cdef double p_with_post_dark = 0.
     cdef double p_noemission
     cdef double zmin, zmax, ramin, ramax, decmin, decmax
-    cdef double M_cutoff = -15.
+    cdef double M_min, M_max, M_cutoff = -15.
     cdef object schechter
     cdef double alpha, Mstar
-    cdef int N_em
+    cdef int avg_N_bright, avg_N_em, N_em, Ntot
     cdef int N_noem
     cdef object file_comp
 
-    cdef Galaxy mockgalaxy = Galaxy(-1, 0,0,0,False, weight = 1./Ntot)
+    cdef Galaxy mockgalaxy = Galaxy(-1, 0,0,0,False, weight = 1./avg_Ntot)
     cdef np.ndarray[double, ndim=1, mode="c"] p_with_post = np.zeros(N, dtype=np.float64)
     cdef double[::1] p_with_post_view = p_with_post
     cdef np.ndarray[double, ndim=1, mode="c"] p_no_post = np.zeros(N, dtype=np.float64)
@@ -62,42 +63,47 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
     decmin = event.decmin
     decmax = event.decmax
 
-    schechter, alpha, Mstar = SchechterMagFunction(-23., -6., h = omega.h)
-    N_em = int(Integrate_Schechter(-6., -23., -26., schechter,M_cutoff)*Ntot)
-    M = N_em-N
-    N_noem = Ntot - N_em
+    # if EMcp:
+    #     N_em   = 1
+    #     M      = 0
+    #     N_noem = 0
+    # if N_em <= N:
+    #     M = 0
+    #     N_noem = avg_Ntot - N
+    #     if avg_Ntot < N:
+    #         N_noem = 0
 
-    if EMcp:
-        N_em   = 1
-        M      = 0
-        N_noem = 0
-    if N_em <= N:
-        M = 0
-        N_noem = Ntot - N
-        if Ntot < N:
-            N_noem = 0
-
-    if completeness_file is not None:
-        file_comp = open(completeness_file, 'a')
-        file_comp.write('\n{0}\t{1}\t{2}\t{3}'.format(omega.h, N_em, N, M))
-        file_comp.close()
+    # if completeness_file is not None:
+    #     file_comp = open(completeness_file, 'a')
+    #     file_comp.write('\n{0}\t{1}\t{2}\t{3}'.format(omega.h, N_em, N, M))
+    #     file_comp.close()
 
     for i in range(N):
         # Voglio calcolare, per ogni galassia, le due
         # quantità rilevanti descritte in CosmoInfer.
-        #print('Galaxy %d of %d\r' % (i+1, N))
+        # print('Galaxy %d of %d\r' % (i+1, N))
         p_no_post_view[i]   = ComputeLogLhNoPost(hosts[i], omega, zmin, zmax, m_th = m_th, M_cutoff = M_cutoff)
         p_with_post_view[i] = ComputeLogLhWithPost(hosts[i], event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th, M_cutoff = M_cutoff)
     # Calcolo le likelihood anche per una singola dark galaxy
-    if not (M == 0):
-        p_no_post_dark   = ComputeLogLhNoPost(mockgalaxy, omega, zmin, zmax, m_th = m_th, M_cutoff = M_cutoff)
-        p_with_post_dark = ComputeLogLhWithPost(mockgalaxy, event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th, M_cutoff = M_cutoff)
-    if not (N_noem == 0):
-        p_noemission     = ComputeLogLhNoEmission(mockgalaxy, omega, zmin, zmax, m_th = m_th, M_cutoff = M_cutoff)
+    p_no_post_dark   = ComputeLogLhNoPost(mockgalaxy, omega, zmin, zmax, m_th = m_th, M_cutoff = M_cutoff)
+    p_with_post_dark = ComputeLogLhWithPost(mockgalaxy, event, omega, zmin, zmax, ramin, ramax, decmin, decmax, m_th = m_th, M_cutoff = M_cutoff)
+    p_noemission     = ComputeLogLhNoEmission(mockgalaxy, omega, zmin, zmax, m_th = m_th, M_cutoff = M_cutoff)
 
     # file_comp = open(completeness_file, 'a')
     # file_comp.write('\n{0}\t{1}\t{2}\t{3}'.format(omega.h, p_no_post_dark, p_with_post_dark, p_noemission))
 
+    M_max = -6.
+    M_min = -23.
+
+    schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, h = omega.h)
+    Ntot_array = np.arange(int(avg_Ntot-3*np.sqrt(avg_Ntot), int(avg_Ntot+3*np.sqrt(avg_Ntot))))
+    for Ntot in Ntot_array:
+        avg_N_em     = int(Integrate_Schechter(M_max, M_min, M_min-3, schechter,M_cutoff)*Ntot)
+        avg_N_bright = ComputeAverageBright(M_min, M_max, zmin, zmax, m_th, Ntot)
+        Nem_array    = np.arange(int(avg_N_em-3*np.sqrt(avg_N_em), int(avg_N_em+3*np.sqrt(avg_N_em))))
+        for N_em in Nem_array:
+            M = N_em-N
+            N_noem = Ntot-N_em
 
     # Calcolo i termini che andranno sommati tra loro (logaritmi)
     cdef np.ndarray[double, ndim=1, mode="c"] addends = np.zeros(N, dtype=np.float64)
@@ -124,6 +130,8 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
     else:
         return -INFINITY
 
+
+
 cdef LumDist(z, omega):
     return 3e3*(z + (1-omega.om +omega.ol)*z**2/2.)/omega.h
 
@@ -149,6 +157,24 @@ cdef inline double appM(double z, double M, CosmologicalParameters omega):
 
 cdef inline double gaussian(double x, double x0, double sigma) nogil:
     return exp(-(x-x0)**2/(2*sigma**2))/(sigma*sqrt(2*M_PI))
+
+cdef int ComputeAverageBright(double M_min, double M_max, double z_min, double z_max, double mth, int Ntot):
+
+    M_array = np.linspace(M_min, M_max, 200)
+    dM = M_array[2]-M_array[1]
+    z_array = np.linspace(z_min,z_max,100)
+    dz = z_array[2]-z_array[1]
+
+    I_z = 0.
+    for z in z_array:
+        Mth = absM(mth, z, omega)
+        I_M = 0.
+        for M in M_array:
+            if M < Mth:
+                I_M += Schechter(M)*dM
+        I_z += I_M*dz/(z_max-z_min)
+
+    return int(Ntot*I_z)
 
 
 
