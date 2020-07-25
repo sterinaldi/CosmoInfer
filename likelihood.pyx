@@ -113,11 +113,10 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
     sum = np.sum(p_no_post)
     for i in range(N):
         addends_view[i] = sum - p_no_post_view[i] + p_with_post_view[i] + M*p_no_post_dark + N_noem*p_noemission
-        #print(i, addends[i])
+
     cdef double dark_term = 0.
     if not (M == 0):
         dark_term = sum + (M-1)*p_no_post_dark + p_with_post_dark + N_noem*p_noemission
-        #print(dark_term)
 
     cdef double logL = -INFINITY
     for i in range(N):
