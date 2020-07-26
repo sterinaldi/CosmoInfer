@@ -10,7 +10,7 @@ from scipy.special import logsumexp
 from scipy.optimize import newton
 from schechter import *
 from scipy.integrate import quad
-from scipy.stats cimport poisson
+from scipy.stats import poisson
 from galaxy cimport Galaxy
 from cosmology cimport CosmologicalParameters
 import itertools as it
@@ -50,6 +50,15 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
     cdef int avg_N_bright, avg_N_em, N_em, Ntot
     cdef int N_noem
     cdef object file_comp
+
+    cdef np.ndarray[double, ndim=1, mode="c"] addends = np.zeros(N, dtype=np.float64)
+    cdef double[::1] addends_view = addends
+    cdef double sum = 0.
+    cdef double fixed_Nem = -INFINITY
+    cdef double I_Ntot, I_Nem
+    cdef double logL = -INFINITY
+    cdef double dark_term = 0.
+    cdef object pNtot, pNem, pNbright
 
     cdef Galaxy mockgalaxy = Galaxy(-1, 0,0,0,False, weight = 1./avg_Ntot)
     cdef np.ndarray[double, ndim=1, mode="c"] p_with_post = np.zeros(N, dtype=np.float64)
@@ -95,14 +104,11 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
     M_max = -6.
     M_min = -23.
 
-    cdef object pNtot, pNem, pNbright
+
     pNtot = poisson(avg_Ntot).pmf
 
     schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, h = omega.h)
     Ntot_array = np.arange(int(avg_Ntot-3*np.sqrt(avg_Ntot), int(avg_Ntot+3*np.sqrt(avg_Ntot))))
-
-    cdef double I_Ntot, I_Nem
-    cdef double logL = -INFINITY
 
     I_Ntot = -INFINITY
     for Ntot in Ntot_array:
@@ -117,16 +123,13 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
             N_noem = Ntot-N_em
 
     # Calcolo i termini che andranno sommati tra loro (logaritmi)
-            cdef np.ndarray[double, ndim=1, mode="c"] addends = np.zeros(N, dtype=np.float64)
-            cdef double[::1] addends_view = addends
-            cdef double sum = 0.
-            cdef double fixed_Nem = -INFINITY
+
 
             sum = np.sum(p_no_post)
             for i in range(N):
                 addends_view[i] = sum - p_no_post_view[i] + p_with_post_view[i] + M*p_no_post_dark + N_noem*p_noemission
 
-            cdef double dark_term = 0.
+
             if not (M == 0):
                 dark_term = sum + (M-1)*p_no_post_dark + p_with_post_dark + N_noem*p_noemission
 
