@@ -34,7 +34,7 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
 
     cdef unsigned int i
     cdef unsigned int N = len(hosts)
-    cdef unsigned int M = Ntot-N
+    cdef unsigned int M
     cdef double logTwoPiByTwo = 0.5*log(2.0*np.pi)
     cdef double logL_galaxy
     cdef double dl
@@ -116,7 +116,7 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
     for Ntot in Ntot_array:
         avg_N_em     = int(Integrate_Schechter(M_max, M_min, M_min-3, schechter,M_cutoff)*Ntot)
         pNem         = poisson(avg_N_em).pmf
-        avg_N_bright = ComputeAverageBright(M_min, M_max, zmin, zmax, m_th, Ntot)
+        avg_N_bright = ComputeAverageBright(M_min, M_max, zmin, zmax, m_th, Ntot, omega)
         pNbright     = poisson(avg_N_bright).pmf
         Nem_array    = np.arange(int(avg_N_em-3*np.sqrt(avg_N_em)), int(avg_N_em+3*np.sqrt(avg_N_em)))
         I_Nem = -INFINITY
@@ -183,7 +183,7 @@ cdef inline double appM(double z, double M, CosmologicalParameters omega):
 cdef inline double gaussian(double x, double x0, double sigma) nogil:
     return exp(-(x-x0)**2/(2*sigma**2))/(sigma*sqrt(2*M_PI))
 
-cdef int ComputeAverageBright(double M_min, double M_max, double z_min, double z_max, double mth, int Ntot):
+cdef int ComputeAverageBright(double M_min, double M_max, double z_min, double z_max, double mth, int Ntot, CosmologicalParameters omega):
 
     M_array = np.linspace(M_min, M_max, 200)
     dM = M_array[2]-M_array[1]
