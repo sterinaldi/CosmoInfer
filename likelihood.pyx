@@ -17,18 +17,19 @@ import itertools as it
 import sys
 import ray
 
-cdef inline double log_add(double x, double y): return x+log(1.0+exp(y-x)) if x >= y else y+log(1.0+exp(x-y))
-cdef inline double linear_density(double x, double a, double b): return a+log(x)*b
 
-@ray.remote
+
 def logLikelihood_single_event(list hosts, object event, CosmologicalParameters omega, double m_th, int Ntot, int EMcp = 0, str completeness_file = None):
     return _logLikelihood_single_event(hosts, event, omega, m_th, Ntot, EMcp = EMcp, completeness_file = completeness_file)
+
+
+cdef inline double log_add(double x, double y): return x+log(1.0+exp(y-x)) if x >= y else y+log(1.0+exp(x-y))
+cdef inline double linear_density(double x, double a, double b): return a+log(x)*b
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.nonecheck(False)
 @cython.cdivision(True)
-
 cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalParameters omega, double m_th, int avg_Ntot, int EMcp = 0, str completeness_file = None):
 
     cdef unsigned int i
@@ -108,16 +109,18 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
     pNtot = poisson(avg_Ntot).pmf
 
     schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, h = omega.h)
-    Ntot_array = np.arange(int(avg_Ntot-3*np.sqrt(avg_Ntot), int(avg_Ntot+3*np.sqrt(avg_Ntot))))
+    Ntot_array = np.arange(int(avg_Ntot-3*np.sqrt(avg_Ntot)), int(avg_Ntot+3*np.sqrt(avg_Ntot)))
 
     I_Ntot = -INFINITY
+    print('Int Ntot')
     for Ntot in Ntot_array:
         avg_N_em     = int(Integrate_Schechter(M_max, M_min, M_min-3, schechter,M_cutoff)*Ntot)
         pNem         = poisson(avg_N_em).pmf
         avg_N_bright = ComputeAverageBright(M_min, M_max, zmin, zmax, m_th, Ntot)
         pNbright     = poisson(avg_N_bright).pmf
-        Nem_array    = np.arange(int(avg_N_em-3*np.sqrt(avg_N_em), int(avg_N_em+3*np.sqrt(avg_N_em))))
+        Nem_array    = np.arange(int(avg_N_em-3*np.sqrt(avg_N_em)), int(avg_N_em+3*np.sqrt(avg_N_em)))
         I_Nem = -INFINITY
+        print('Int Nem')
         for N_em in Nem_array:
             M = N_em-N
             N_noem = Ntot-N_em
