@@ -95,35 +95,46 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
     M_max = -6.
     M_min = -23.
 
+    cdef object pNtot, pNem, pNbright
+    pNtot = poisson(avg_Ntot).pmf
+
     schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, h = omega.h)
     Ntot_array = np.arange(int(avg_Ntot-3*np.sqrt(avg_Ntot), int(avg_Ntot+3*np.sqrt(avg_Ntot))))
+
+    cdef double I_Ntot, I_Nem
+    I_Ntot = 0.
     for Ntot in Ntot_array:
         avg_N_em     = int(Integrate_Schechter(M_max, M_min, M_min-3, schechter,M_cutoff)*Ntot)
+        pNem         = poisson(avg_N_em).pmf
         avg_N_bright = ComputeAverageBright(M_min, M_max, zmin, zmax, m_th, Ntot)
+        pNbright     = poisson(avg_N_bright).pmf
         Nem_array    = np.arange(int(avg_N_em-3*np.sqrt(avg_N_em), int(avg_N_em+3*np.sqrt(avg_N_em))))
+        I_Nem = 0.
         for N_em in Nem_array:
             M = N_em-N
             N_noem = Ntot-N_em
 
     # Calcolo i termini che andranno sommati tra loro (logaritmi)
-    cdef np.ndarray[double, ndim=1, mode="c"] addends = np.zeros(N, dtype=np.float64)
-    cdef double[::1] addends_view = addends
-    cdef double sum = 0.
+            cdef np.ndarray[double, ndim=1, mode="c"] addends = np.zeros(N, dtype=np.float64)
+            cdef double[::1] addends_view = addends
+            cdef double sum = 0.
 
-    sum = np.sum(p_no_post)
-    for i in range(N):
-        addends_view[i] = sum - p_no_post_view[i] + p_with_post_view[i] + M*p_no_post_dark + N_noem*p_noemission
+            sum = np.sum(p_no_post)
+            for i in range(N):
+                addends_view[i] = sum - p_no_post_view[i] + p_with_post_view[i] + M*p_no_post_dark + N_noem*p_noemission
 
-    cdef double dark_term = 0.
-    if not (M == 0):
-        dark_term = sum + (M-1)*p_no_post_dark + p_with_post_dark + N_noem*p_noemission
+            cdef double dark_term = 0.
+            if not (M == 0):
+                dark_term = sum + (M-1)*p_no_post_dark + p_with_post_dark + N_noem*p_noemission
 
-    cdef double logL = -INFINITY
-    for i in range(N):
-        logL = log_add(addends_view[i], logL)
-    if np.isfinite(dark_term):
-        for i in range(M):
-            logL = log_add(dark_term, logL)
+            cdef double logL = -INFINITY
+            for i in range(N):
+                I_Nem = log_add(addends_view[i], I_Nem)
+            if np.isfinite(dark_term):
+                for i in range(M):
+                    I_Nem = log_add(dark_term, I_Nem)
+            
+
     if np.isfinite(logL):
         return logL
     else:
