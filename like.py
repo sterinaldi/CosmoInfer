@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 from displaypost import plot_post
 import math
 import ray
+from time import perf_counter
 
 def weighted_quantile(values, quantiles, sample_weight=None,
                       values_sorted=False, old_style=False):
@@ -83,10 +84,16 @@ def calculatelikelihood(args):
         omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
         logL = 0.
         #sys.stdout.write('Event %d of %d, h = %.3f, hmax = %.3f\n' % (evcounter, len(events), hi, h.max()))
-        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 20., Ntot = e.n_tot, completeness_file = completeness_file)
+        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 18., avg_Ntot = e.n_tot, completeness_file = completeness_file)
         omega.DestroyCosmologicalParameters()
         return logL
 
+@ray.remote
+def computeloglikelihood(e, hi, mth, opts):
+    omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
+    logL = lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, mth, Ntot = e.n_tot, completeness_file = opts.out+'completeness_fraction_'+str(e.ID)+'.txt')
+    omega.DestroyCosmologicalParameters()
+    return logL
 
 usage=""" %prog (options)"""
 
@@ -115,6 +122,9 @@ if __name__ == '__main__':
     (opts,args)=parser.parse_args()
 
     ray.init()
+
+    init_time = perf_counter()
+
     events = readdata.read_event(opts.event_class, input_folder = opts.data, emcp = opts.EMcp, nevmax = opts.nevmax)
 
     if opts.out == None:
@@ -122,7 +132,7 @@ if __name__ == '__main__':
         if not os.path.exists(opts.out):
             os.mkdir(opts.out)
 
-    h  = np.linspace(0.67, 0.8, 20, endpoint=False)
+    h  = np.linspace(0.2, 0.9, 100, endpoint=True)
     dh = (h.max()-h.min())/len(h)
 
     evcounter    = 0
@@ -135,37 +145,40 @@ if __name__ == '__main__':
 
     for e in events:
         I = 0.
-        likelihood = []
+        likelihood_tasks = []
         evcounter += 1
         completeness_file = opts.out+'completeness_fraction_'+str(e.ID)+'.txt'
         f=open(opts.out+'completeness_fraction_'+str(e.ID)+'.txt', 'w')
         f.write('h Nem N M')
         f.close()
         for hi in h:
-            omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
+            #omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
             logL = 0.
             sys.stdout.write('Event %d of %d, h = %.3f, hmax = %.3f\n' % (evcounter, len(events), hi, h.max()))
-            logL += ray.get(lk.logLikelihood_single_event.remote(e.potential_galaxy_hosts, e, omega, 20., Ntot = e.n_tot, completeness_file = opts.out+'completeness_fraction_'+str(e.ID)+'.txt'))
-            omega.DestroyCosmologicalParameters()
-            likelihood.append(logL)
+            # logL += ray.get(lk.logLikelihood_single_event.remote(e.potential_galaxy_hosts, e, omega, 20., Ntot = e.n_tot, completeness_file = opts.out+'completeness_fraction_'+str(e.ID)+'.txt'))
+            # logL += ray.get(computeloglikelihood.remote(e, hi, 18., opts))
+            # logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 18., Ntot = e.n_tot, completeness_file = opts.out+'completeness_fraction_'+str(e.ID)+'.txt')
+            # omega.DestroyCosmologicalParameters()
+            # likelihood.append(logL)
+            likelihood_tasks.append(computeloglikelihood.remote(e, hi, 18., opts))
         # args = [(hi, e, completeness_file) for hi in h]
         # results = pool.map(calculatelikelihood, args)
         # futures = [calculatelikelihood.remote((hi, e, completeness_file)) for hi in h]
         # results = ray.get(futures)
 
-        likelihood = np.array(results)
-        lhs_unnormed.append(np.array(likelihood))
+        likelihood = np.array(ray.get(likelihood_tasks))
+        lhs_unnormed.append(likelihood)
         likelihood_app = np.exp(likelihood - likelihood.max())
         for i in range(len(likelihood_app)):
             li = likelihood_app[i]
             I += li*dh
         likelihood = likelihood - np.log(I) - likelihood.max()
-        lhs.append(np.array(likelihood))
+        lhs.append(likelihood)
         np.savetxt(opts.out+'likelihood_'+str(e.ID)+'.txt', np.array([h, likelihood]).T, header = 'h\t\tlogL')
 
     joint = np.zeros(len(likelihood))
     for like in lhs_unnormed:
-        if np.isfinite(like[10]):
+        if np.isfinite(like[0]):
             joint += like
     I = 0.
     joint_app = np.exp(joint - joint.max())
@@ -210,26 +223,31 @@ if __name__ == '__main__':
     ax.set_ylabel('$p(H_0)$')
     fig2.savefig(opts.out+'h_posterior_tight.pdf', bbox_inches='tight')
 
+    end_time = perf_counter()
 
-    completeness = np.genfromtxt(opts.out+'completeness_fraction_1.0.txt', names = True)
-    Nem   = completeness['Nem']
-    N     = completeness['N']
-    gamma = N/Nem
-    h = completeness['h']
-    fig2 = plt.figure()
-    ax1  = fig2.add_subplot(211)
-    ax2  = fig2.add_subplot(212)
-    gamma = np.array([x for _,x in sorted(zip(h,gamma))])
-    gammamax = gamma[np.where(joint == joint.max())]
-    h.sort()
+    print('Elapsed time: %f s' %(end_time - init_time))
+    print('Elapsed time: %f m' %((end_time - init_time)/60.))
 
-    ax1.plot(h*100, gamma)
-    ax1.set_ylabel('$\\gamma(H_0)$')
-    ax1.set_xlabel('$H_0$')
-    ax2.plot(gamma, np.exp(joint)/100.)
-    ax2.axvline(gammamax, ls = '--', color = 'r', label = '$\\gamma = %.2f$'%(gammamax))
-    ax2.set_ylabel('$p(\\gamma)$')
-    ax2.set_xlabel('$\\gamma = N/N_{tot}$')
-    ax2.legend(loc=0)
-    fig2.tight_layout()
-    fig2.savefig(opts.out+'completeness.pdf', bbox_inches = 'tight')
+    #
+    # completeness = np.genfromtxt(opts.out+'completeness_fraction_1.0.txt', names = True)
+    # Nem   = completeness['Nem']
+    # N     = completeness['N']
+    # gamma = N/Nem
+    # h = completeness['h']
+    # fig2 = plt.figure()
+    # ax1  = fig2.add_subplot(211)
+    # ax2  = fig2.add_subplot(212)
+    # gamma = np.array([x for _,x in sorted(zip(h,gamma))])
+    # gammamax = gamma[np.where(joint == joint.max())]
+    # h.sort()
+    #
+    # ax1.plot(h*100, gamma)
+    # ax1.set_ylabel('$\\gamma(H_0)$')
+    # ax1.set_xlabel('$H_0$')
+    # ax2.plot(gamma, np.exp(joint)/100.)
+    # ax2.axvline(gammamax, ls = '--', color = 'r', label = '$\\gamma = %.2f$'%(gammamax))
+    # ax2.set_ylabel('$p(\\gamma)$')
+    # ax2.set_xlabel('$\\gamma = N/N_{tot}$')
+    # ax2.legend(loc=0)
+    # fig2.tight_layout()
+    # fig2.savefig(opts.out+'completeness.pdf', bbox_inches = 'tight')

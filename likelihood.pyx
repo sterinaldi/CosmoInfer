@@ -34,7 +34,7 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
 
     cdef unsigned int i
     cdef unsigned int N = len(hosts)
-    cdef unsigned int M
+    cdef int M
     cdef double logTwoPiByTwo = 0.5*log(2.0*np.pi)
     cdef double logL_galaxy
     cdef double dl
@@ -112,19 +112,23 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
     Ntot_array = np.arange(int(avg_Ntot-3*np.sqrt(avg_Ntot)), int(avg_Ntot+3*np.sqrt(avg_Ntot)))
 
     I_Ntot = -INFINITY
-    print('Int Ntot')
     for Ntot in Ntot_array:
         avg_N_em     = int(Integrate_Schechter(M_max, M_min, M_min-3, schechter,M_cutoff)*Ntot)
         pNem         = poisson(avg_N_em).pmf
-        avg_N_bright = ComputeAverageBright(M_min, M_max, zmin, zmax, m_th, Ntot, omega)
+        avg_N_bright = ComputeAverageBright(M_min, M_max, zmin, zmax, m_th, M_cutoff, Ntot, omega, schechter)
         pNbright     = poisson(avg_N_bright).pmf
         Nem_array    = np.arange(int(avg_N_em-3*np.sqrt(avg_N_em)), int(avg_N_em+3*np.sqrt(avg_N_em)))
         I_Nem = -INFINITY
-        print('Int Nem')
         for N_em in Nem_array:
             M = N_em-N
+            if M < 0:
+                M = 0
+                N_em = N
             N_noem = Ntot-N_em
+            if N_noem < 0:
+                N_noem = 0
 
+            print(avg_Ntot, avg_N_em, avg_N_bright, N, M, N_em, N_noem)
     # Calcolo i termini che andranno sommati tra loro (logaritmi)
 
 
@@ -136,18 +140,19 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
             if not (M == 0):
                 dark_term = sum + (M-1)*p_no_post_dark + p_with_post_dark + N_noem*p_noemission
 
-
+            fixed_Nem = -INFINITY
             for i in range(N):
                 fixed_Nem = log_add(addends_view[i], fixed_Nem)
             if np.isfinite(dark_term):
                 for i in range(M):
                     fixed_Nem = log_add(dark_term, fixed_Nem)
 
-            fixed_Nem += np.log10(pNem(N_em))
-            I_Nem = log_add(fixed_Nem, I_Nem)
+            fixed_Nem += log(pNem(N_em))
+            if N <= N_em:
+                I_Nem = log_add(fixed_Nem, I_Nem)
 
-        I_Ntot = log_add(I_Nem + pNtot(Ntot) + pNbright(N), I_Ntot)
-
+        I_Ntot = log_add(I_Nem + log(pNtot(Ntot)) + log(pNbright(N)), I_Ntot)
+    print('avg_Ntot, avg_N_em, avg_N_bright, N, M, N_em, N_noem')
     logL = I_Ntot
 
     if np.isfinite(logL):
@@ -183,7 +188,7 @@ cdef inline double appM(double z, double M, CosmologicalParameters omega):
 cdef inline double gaussian(double x, double x0, double sigma) nogil:
     return exp(-(x-x0)**2/(2*sigma**2))/(sigma*sqrt(2*M_PI))
 
-cdef int ComputeAverageBright(double M_min, double M_max, double z_min, double z_max, double mth, int Ntot, CosmologicalParameters omega):
+cdef int ComputeAverageBright(double M_min, double M_max, double z_min, double z_max, double mth, double M_cutoff, int Ntot, CosmologicalParameters omega, object Schechter):
 
     M_array = np.linspace(M_min, M_max, 200)
     dM = M_array[2]-M_array[1]
@@ -192,10 +197,10 @@ cdef int ComputeAverageBright(double M_min, double M_max, double z_min, double z
 
     I_z = 0.
     for z in z_array:
-        Mth = absM(mth, z, omega)
+        Mth = absM(z, mth, omega)
         I_M = 0.
         for M in M_array:
-            if M < Mth:
+            if M < Mth and M < M_cutoff:
                 I_M += Schechter(M)*dM
         I_z += I_M*dz/(z_max-z_min)
 
