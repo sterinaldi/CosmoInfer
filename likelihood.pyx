@@ -128,7 +128,7 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
             if N_noem < 0:
                 N_noem = 0
 
-            print(avg_Ntot, avg_N_em, avg_N_bright, N, M, N_em, N_noem)
+            # print(avg_Ntot, avg_N_em, avg_N_bright, N, M, N_em, N_noem)
     # Calcolo i termini che andranno sommati tra loro (logaritmi)
 
 
@@ -152,7 +152,8 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
                 I_Nem = log_add(fixed_Nem, I_Nem)
 
         I_Ntot = log_add(I_Nem + log(pNtot(Ntot)) + log(pNbright(N)), I_Ntot)
-    print('avg_Ntot, avg_N_em, avg_N_bright, N, M, N_em, N_noem')
+
+    # print('avg_Ntot, avg_N_em, avg_N_bright, N, M, N_em, N_noem')
     logL = I_Ntot
 
     if np.isfinite(logL):
@@ -202,7 +203,7 @@ cdef int ComputeAverageBright(double M_min, double M_max, double z_min, double z
         for M in M_array:
             if M < Mth and M < M_cutoff:
                 I_M += Schechter(M)*dM
-        I_z += I_M*dz/(z_max-z_min)
+        I_z += I_M*omega.ComovingVolumeElement(z)*dz/(omega.ComovingVolume(z_max)-omega.ComovingVolume(z_min))
 
     return int(Ntot*I_z)
 
