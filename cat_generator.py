@@ -26,6 +26,8 @@ import random as rd
 import lal
 import os
 import sys
+from scipy.stats import poisson
+import ray
 
 def appM(z, M, omega):
     return M + 5.0*np.log10(1e5*lal.LuminosityDistance(omega,z)) - 5.*np.log10(omega.h)
@@ -33,29 +35,98 @@ def appM(z, M, omega):
 def gaussian(x, x0, sigma):
     return np.exp(-(x-x0)**2/(2*sigma**2))/(sigma*np.sqrt(2*np.pi))
 
+def LumDist(z, omega):
+    return 3e3*(z + (1-omega.om +omega.ol)*z**2/2.)/omega.h
+
+def dLumDist(z, omega):
+    return 3e3*(1+(1-omega.om+omega.ol)*z)/omega.h
+
+def RedshiftCalculation(LD, omega, zinit=0.3, limit = 0.0001):
+    '''
+    Redshift given a certain luminosity, calculated by recursion.
+    Limit is the less significative digit.
+    '''
+    LD_test = LumDist(zinit, omega)
+    if abs(LD-LD_test) < limit :
+        return zinit
+    znew = zinit - (LD_test - LD)/dLumDist(zinit,omega)
+    return RedshiftCalculation(LD, omega, zinit = znew)
+
+
+#@ray.remote
+def generate_galaxy(ipar,Schechter, omega, i, ID,ra,dec,z,z_cosmo,DL,absB,dB,appB,host):
+    # omega = lal.CreateCosmologicalParameters(0.697, 0.306, 0.694, -1, 0, 0)
+    ID_try = i
+    ra_try = rd.uniform(5.13, 5.18)
+    dec_try = np.arccos(rd.uniform(-0.08, -0.24))
+    while 1:
+        z_temp = rd.uniform(ipar['z_min'], ipar['z_max'])
+        if rd.random()*ipar['dCoVolMax'] < lal.ComovingVolumeElement(z_temp,omega):
+            z_cosmo_try = z_temp
+            break
+    z_pec = rd.gauss(0, 0.001)
+    z_try = z_cosmo_try+z_pec
+    DL_try = lal.LuminosityDistance(omega,z_cosmo_try)
+    while 1:
+        B_temp = rd.uniform(ipar['M_min'], ipar['M_max'])
+        if rd.random()*ipar['pM_max'] < Schechter(B_temp):
+            absB_try = B_temp
+            break
+
+    if appM(z_cosmo_try, absB_try, omega) < ipar['m_th']:
+        ID.append(ID_try)
+        ra.append(ra_try)
+        dec.append(dec_try)
+        z.append(z_try)
+        z_cosmo.append(z_cosmo_try)
+        DL.append(DL_try)
+        absB.append(absB_try)
+        dB.append(0.5)
+        appB.append(appM(z_cosmo_try, absB_try, omega))
+        host.append(0)
+        
+    return
 
 if __name__ == '__main__':
 
-    n_ev = 15
-    omega = lal.CreateCosmologicalParameters(0.7, 0.3, 0.7, -1, 0, 0)
-    M_max    = -6.
+    ray.init()
+    n_ev = 0
+    omega = lal.CreateCosmologicalParameters(0.697, 0.306, 0.694, -1, 0, 0)
+    M_max    = -4.
     M_min    = -23.
     M_mean = -20
     sigma  = 0.5
+
+    m_th = 18.
+
     Schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, omega.h)
-    output = 'mockcatalog_def2/'
+    output = '/Users/stefanorinaldi/Documents/Sim/catalog_29/'
     if not os.path.exists(output):
         os.mkdir(output)
-    numberdensity = 0.066
+    numberdensity = 0.66
 
-    z_min = 0.002
-    z_max = 0.04
+    LD_max = 600
+    LD_min = 300
+
+    z_min = RedshiftCalculation(LD_min, omega)
+    z_max = RedshiftCalculation(LD_max, omega)
+
     dCoVolMax = lal.ComovingVolumeElement(z_max,omega)
     pM_max    = Schechter(M_max)
     CoVol = lal.ComovingVolume(omega, z_max) - lal.ComovingVolume(omega, z_min)
     ev_density = n_ev/CoVol
     np.savetxt(output+'evdensity.txt', np.array([ev_density]).T, header = 'evdensity')
-    N_tot = int(CoVol*numberdensity)
+    N_tot = poisson.rvs(int(CoVol*numberdensity), 1)
+
+    ipar = {
+            'z_min': z_min,
+            'z_max': z_max,
+            'M_min': M_min,
+            'M_max': M_max,
+            'm_th': m_th,
+            'dCoVolMax': dCoVolMax,
+            'pM_max': pM_max
+            }
 
     ID      = []
     ra      = []
@@ -79,32 +150,13 @@ if __name__ == '__main__':
     DL_h      = []
     host_h    = []
 
+    gal_task = []
 
     for i in range(N_tot):
 
         sys.stdout.write('{0} out of {1}\r'.format(i+1, N_tot))
         sys.stdout.flush()
-        ID.append(i)
-        ra.append(rd.uniform(0,2*np.pi))
-        dec.append(rd.uniform(-np.pi/2.,np.pi/2.))
-        while 1:
-            z_temp = rd.uniform(z_min,z_max)
-            if rd.random()*dCoVolMax < lal.ComovingVolumeElement(z_temp,omega):
-                z_c = z_temp
-                z_cosmo.append(z_c)
-                break
-        z_pec = rd.gauss(0, 0.001)
-        z.append(z_c+z_pec)
-        DL.append(lal.LuminosityDistance(omega,z_c))
-        while 1:
-            B_temp = rd.uniform(M_min, M_max)
-            if rd.random()*pM_max < Schechter(B_temp):
-                B = B_temp
-                absB.append(B)
-                break
-        dB.append(0.5)
-        appB.append(appM(z_c, B, omega))
-        host.append(0)
+        generate_galaxy(ipar, Schechter, omega, i, ID,ra,dec,z,z_cosmo,DL,absB,dB,appB,host)
 
     for i in range(n_ev):
         while 1:
@@ -130,7 +182,8 @@ if __name__ == '__main__':
     header = 'ID\tra\t\tdec\t\tz\t\tz_cosmo\t\tDL\t\tB_abs\t\tB\t\tB_err\t\thost'
     fmt = '%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%d'
     np.savetxt(output+'mockcatalog.txt', np.array([ID, ra, dec, z, z_cosmo, DL, absB, appB, dB, host]).T, fmt = fmt, header = header)
-    np.savetxt(output+'hosts.txt', np.array([ID_h, ra_h, dec_h, z_h, z_cosmo_h, DL_h, absB_h, appB_h, dB_h, host_h]).T, fmt = fmt, header = header)
+    if n_ev > 0:
+        np.savetxt(output+'hosts.txt', np.array([ID_h, ra_h, dec_h, z_h, z_cosmo_h, DL_h, absB_h, appB_h, dB_h, host_h]).T, fmt = fmt, header = header)
 
     fig_z_cosmo = plt.figure()
     fig_z_pm    = plt.figure()
@@ -181,12 +234,13 @@ if __name__ == '__main__':
     ax_M.legend(loc = 0)
     fig_M.savefig(output+'M.pdf', bbox_inches='tight')
 
-    ax_M_hosts.hist(absB_h, bins = int(np.sqrt(len(absB_h))), density = True, color='lightblue', label = '$M$')
-    #ax_M_hosts.plot(app_M_hosts, gaussian(app_M_hosts, M_mean, sigma), color = 'red', linewidth = 0.5, label = '$f(M)$')
-    ax_M_hosts.set_xlabel('$M\ (B\ band, hosts)$')
-    ax_M_hosts.set_ylabel('$p(M)$')
-    ax_M_hosts.legend(loc=0)
-    fig_M_hosts.savefig(output+'M_hosts.pdf', bbox_inches='tight')
+    if n_ev > 0:
+        ax_M_hosts.hist(absB_h, bins = int(np.sqrt(len(absB_h))), density = True, color='lightblue', label = '$M$')
+        #ax_M_hosts.plot(app_M_hosts, gaussian(app_M_hosts, M_mean, sigma), color = 'red', linewidth = 0.5, label = '$f(M)$')
+        ax_M_hosts.set_xlabel('$M\ (B\ band, hosts)$')
+        ax_M_hosts.set_ylabel('$p(M)$')
+        ax_M_hosts.legend(loc=0)
+        fig_M_hosts.savefig(output+'M_hosts.pdf', bbox_inches='tight')
 
     z_em = []
     z_det = []
@@ -197,7 +251,6 @@ if __name__ == '__main__':
                 z_det.append(zi)
 
     N_em, bins, other = plt.hist(z_em, bins = 100)# int(np.sqrt(len(z_em))))
-
     N_det, bins, other = plt.hist(z_det, bins = bins)
 
     reds = []
