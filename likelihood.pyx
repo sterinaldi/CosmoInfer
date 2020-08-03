@@ -156,6 +156,8 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
     # print('avg_Ntot, avg_N_em, avg_N_bright, N, M, N_em, N_noem')
     logL = I_Ntot
 
+    print('h=%.3f done' %(omega.h))
+
     if np.isfinite(logL):
         return logL
     else:
