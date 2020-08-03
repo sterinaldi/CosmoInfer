@@ -422,7 +422,6 @@ def readGC(file,dpgmm,standard_cosmology=True, h = -1):
                 ol      = 1.0-om
                 omega   = lal.CreateCosmologicalParameters(h_random,om,ol,-1.0,0.0,0.0)
 
-            print(omega.h)
             ra.append(np.float(gal['ra']))
             dec.append(np.float(gal['dec']))
             z.append(np.float(gal['z']))

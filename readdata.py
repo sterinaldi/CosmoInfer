@@ -181,7 +181,7 @@ class Event_CBC(object):
         print('Total number of galaxies in the considered volume ({0} Mpc^3): {1}'.format(self.vol_90, self.n_tot))
         self.potential_galaxy_hosts = catalog_weight(self.potential_galaxy_hosts, weight = 'uniform', ngal = self.n_tot)
         self.zmin = RedshiftCalculation(self.LDmin, lal.CreateCosmologicalParameters(0.3,0.7,0.3,-1,0,0))
-        self.zmax = RedshiftCalculation(self.LDmax, lal.CreateCosmologicalParameters(2,0.7,0.3,-1,0,0))
+        self.zmax = RedshiftCalculation(self.LDmax, lal.CreateCosmologicalParameters(1,0.7,0.3,-1,0,0))
 
     def logP(self, galaxy):
         '''
