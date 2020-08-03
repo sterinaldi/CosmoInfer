@@ -490,7 +490,7 @@ def main():
     parser.add_option("--cosmology", type="int", dest="cosmology", help="assume a lambda CDM cosmology?", default=True)
     parser.add_option("--3d", type="int", dest="threed", help="3d volume map", default=0)
     parser.add_option("--tfile", type="string", dest="tfile", help="coalescence time file", default=None)
-    parser.add_option("-h", "--hubble", type = "double", dest="h", help="reduced hubble constant value", default=-1)
+    parser.add_option("--hubble", type = "string", dest="h", help="reduced hubble constant value", default='-1')
     (options, args)     = parser.parse_args()
 
     print(options)
@@ -501,6 +501,7 @@ def main():
     eventID             = options.event_id
     out_dir             = options.output
     options.bins        = np.array(options.bins,dtype=np.int)
+    options.h           = float(options.h)
     os.system('mkdir -p %s'%(out_dir))
 
     if injFile is not None:
@@ -612,7 +613,8 @@ def main():
         plt.xlabel(r"$\mathrm{Distance/Mpc}$")
         plt.ylabel(r"$\mathrm{probability}$ $\mathrm{density}$")
         plt.savefig(os.path.join(options.output,'distance_posterior.pdf'),bbox_inches='tight')
-    np.savetxt(os.path.join(options.output,'confidence_levels.txt'), np.array([CLs, volumes, areas, distances, ramin, ramax, decmin, decmax]).T, fmt='%.2f\t%f\t%f\t%f\t%f\t%f\t%f\t%f')
+    path = os.path.join(options.output,'confidence_levels_%.3f.txt') %(dpgmm.h)
+    np.savetxt(path, np.array([CLs, volumes, areas, distances, ramin, ramax, decmin, decmax]).T, fmt='%.2f\t%f\t%f\t%f\t%f\t%f\t%f\t%f')
     if dpgmm.injection is not None: np.savetxt(os.path.join(options.output,'searched_quantities.txt'), np.array([searched_volume,searched_area,searched_distance]), fmt='%s\t%s\t%s')
 
     np.savetxt(os.path.join(options.output,'distance_map.txt'), np.array([dpgmm.grid[0], dpgmm.unnormed_distance_map]).T, fmt='%f\t%f', header='dist\tpost')
