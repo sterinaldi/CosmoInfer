@@ -5,7 +5,7 @@ from galaxies import *
 import lal
 from volume_reconstruction.dpgmm.dpgmm import *
 from volume_reconstruction.utils.utils import *
-# import dill as pickle
+import dill as pickle
 from scipy.special import logsumexp
 from scipy.interpolate import interp1d
 from scipy.stats import gaussian_kde
@@ -165,7 +165,7 @@ class Event_CBC(object):
         self.decmax  = self.cl['decmax'][np.where(self.cl['CL']==0.9)[0][0]]
 
         marginalized_post = np.genfromtxt(distance_file, names = True)
-        self.interpolant = interp1d(marginalized_post['dist'], marginalized_post['post'], 'linear')
+        self.interpolant = interp1d(marginalized_post['dist'], marginalized_post['post'], 'linear', fill_value = 0., bounds_error=False)
 
 
 
@@ -194,10 +194,10 @@ class Event_CBC(object):
         return logpost
 
     def marg_logP(self, LD):
-            try:
-                marg_post    = self.interpolant(LD)
+            marg_post    = self.interpolant(LD)
+            if marg_post > 0:
                 logpost = np.log(marg_post)-2.*np.log(LD)+np.log(self.LDmax**3-self.LDmin**3)-np.log(3)
-            except:
+            else:
                 logpost = -np.inf
             return logpost
 
