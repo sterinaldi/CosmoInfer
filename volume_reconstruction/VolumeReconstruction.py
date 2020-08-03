@@ -416,7 +416,7 @@ def readGC(file,dpgmm,standard_cosmology=True, h = -1):
     for gal in cat:
         # Flag2 = 0: no distance/redshift measurement.
         if np.float(gal['z']) > 0.0:
-            if not(standard_cosmology) or :
+            if not(standard_cosmology) and not h == -1:
                 h       = np.random.uniform(0.3,1)
                 om      = np.random.uniform(0.0,1.0)
                 ol      = 1.0-om
