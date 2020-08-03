@@ -57,8 +57,8 @@ def RedshiftCalculation(LD, omega, zinit=0.3, limit = 0.0001):
 def generate_galaxy(ipar,Schechter, omega, i, ID,ra,dec,z,z_cosmo,DL,absB,dB,appB,host):
     # omega = lal.CreateCosmologicalParameters(0.697, 0.306, 0.694, -1, 0, 0)
     ID_try = i
-    ra_try = rd.uniform(5.13, 5.18)
-    dec_try = np.arccos(rd.uniform(-0.08, -0.24))
+    ra_try = rd.uniform(5.12, 5.18)
+    dec_try = np.arccos(rd.uniform(np.cos(-0.12), np.cos(-0.22)))#np.arccos()
     while 1:
         z_temp = rd.uniform(ipar['z_min'], ipar['z_max'])
         if rd.random()*ipar['dCoVolMax'] < lal.ComovingVolumeElement(z_temp,omega):
@@ -75,8 +75,8 @@ def generate_galaxy(ipar,Schechter, omega, i, ID,ra,dec,z,z_cosmo,DL,absB,dB,app
 
     if appM(z_cosmo_try, absB_try, omega) < ipar['m_th']:
         ID.append(ID_try)
-        ra.append(ra_try)
-        dec.append(dec_try)
+        ra.append(np.rad2deg(ra_try))
+        dec.append(np.rad2deg(-dec_try))
         z.append(z_try)
         z_cosmo.append(z_cosmo_try)
         DL.append(DL_try)
@@ -84,7 +84,7 @@ def generate_galaxy(ipar,Schechter, omega, i, ID,ra,dec,z,z_cosmo,DL,absB,dB,app
         dB.append(0.5)
         appB.append(appM(z_cosmo_try, absB_try, omega))
         host.append(0)
-        
+
     return
 
 if __name__ == '__main__':
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     ray.init()
     n_ev = 0
     omega = lal.CreateCosmologicalParameters(0.697, 0.306, 0.694, -1, 0, 0)
-    M_max    = -4.
+    M_max    = -6.
     M_min    = -23.
     M_mean = -20
     sigma  = 0.5
@@ -113,7 +113,8 @@ if __name__ == '__main__':
 
     dCoVolMax = lal.ComovingVolumeElement(z_max,omega)
     pM_max    = Schechter(M_max)
-    CoVol = lal.ComovingVolume(omega, z_max) - lal.ComovingVolume(omega, z_min)
+    CoVol = (lal.ComovingVolume(omega, z_max) - lal.ComovingVolume(omega, z_min))*((5.18-5.12)*(0.22-0.12)/(4*np.pi))
+    print('CoVol=', CoVol)
     ev_density = n_ev/CoVol
     np.savetxt(output+'evdensity.txt', np.array([ev_density]).T, header = 'evdensity')
     N_tot = poisson.rvs(int(CoVol*numberdensity), 1)
