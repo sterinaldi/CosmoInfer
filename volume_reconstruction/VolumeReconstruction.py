@@ -65,7 +65,8 @@ class DPGMMSkyPosterior(object):
                  nthreads           = None,
                  injection          = None,
                  catalog            = None,
-                 standard_cosmology = True):
+                 standard_cosmology = True,
+                 h                  = -1):
 
         self.posterior_samples  = np.array(posterior_samples)
         self.dims               = dimension
@@ -80,9 +81,10 @@ class DPGMMSkyPosterior(object):
         self.injection          = injection
         self.catalog            = None
         self.output             = output
+        self.h                  = h
         self._initialise_grid()
         if catalog is not None:
-            self.catalog = readGC(catalog,self,standard_cosmology=standard_cosmology)
+            self.catalog = readGC(catalog,self,standard_cosmology=standard_cosmology, h = h)
 
     def _initialise_dpgmm(self):
         self.model = DPGMM(self.dims)
@@ -391,7 +393,7 @@ def FindLevelForHeight(inLogArr, logvalue):
 # utilities
 #---------
 
-def readGC(file,dpgmm,standard_cosmology=True):
+def readGC(file,dpgmm,standard_cosmology=True, h = -1):
     ra, dec, z, dl, B, dB, B_abs, pecmot = [], [], [], [], [], [], [], []
 
     '''
@@ -400,26 +402,28 @@ def readGC(file,dpgmm,standard_cosmology=True):
     glade_names = "PGCname, GWGCname, HyperLedaname, 2MASSname, SDSS-DR12name,\
                 flag1, RA, DEC, dist, dist_err, z, B, B_err, B_abs, J, J_err,\
                 H, H_err, K, K_err, flag2, flag3"
-    cat = np.genfromtxt(file, names = glade_names)
+    cat = np.genfromtxt(file, names = True) #glade_names)
     if standard_cosmology:
         omega       = lal.CreateCosmologicalParameters(0.7, 0.3, 0.7, -1.0, 0.0, 0.0)
         zmin, zmax  = find_redshift_limits([0.69,0.71], [0.29,0.31], dpgmm.grid[0][0], dpgmm.grid[0][-1])
+    else if not h == -1:
+         omega       = lal.CreateCosmologicalParameters(h, 0.3, 0.7, -1.0, 0.0, 0.0)
+         zmin, zmax  = find_redshift_limits([h-0.01,h+0.01], [0.29,0.31], dpgmm.grid[0][0], dpgmm.grid[0][-1])
     else:
-        zmin,zmax   = find_redshift_limits([0.3,1.8],[0.0,1.0],dpgmm.grid[0][0],dpgmm.grid[0][-1])
+        zmin,zmax   = find_redshift_limits([0.3,1],[0.0,1.0],dpgmm.grid[0][0],dpgmm.grid[0][-1])
     sys.stderr.write("selecting galaxies within redshift %f and %f from distances in %f and %f\n"%(zmin,zmax,dpgmm.grid[0][0],dpgmm.grid[0][-1]))
 
     for gal in cat:
         # Flag2 = 0: no distance/redshift measurement.
-        print(gal)
         if np.float(gal['z']) > 0.0:
-            if not(standard_cosmology):
-                h       = np.random.uniform(0.3,1.8)
+            if not(standard_cosmology) or :
+                h       = np.random.uniform(0.3,1)
                 om      = np.random.uniform(0.0,1.0)
                 ol      = 1.0-om
                 omega   = lal.CreateCosmologicalParameters(h,om,ol,-1.0,0.0,0.0)
 
-            ra.append(np.float(gal['RA']))
-            dec.append(np.float(gal['DEC']))
+            ra.append(np.float(gal['ra']))
+            dec.append(np.float(gal['dec']))
             z.append(np.float(gal['z']))
             B.append(np.float(gal['B']))
             if np.isfinite(gal['B_err']):
@@ -427,8 +431,8 @@ def readGC(file,dpgmm,standard_cosmology=True):
             else:
                 dB.append(0.5)
             B_abs.append(np.float(gal['B_abs']))
-            pecmot.append(np.float(gal['flag3']))
-
+            #pecmot.append(np.float(gal['flag3']))
+            pecmot.append(1)
 
             if not(np.isnan(z[-1])) and (zmin < z[-1] < zmax):
                 dl.append(lal.LuminosityDistance(omega,z[-1]))
@@ -486,6 +490,7 @@ def main():
     parser.add_option("--cosmology", type="int", dest="cosmology", help="assume a lambda CDM cosmology?", default=True)
     parser.add_option("--3d", type="int", dest="threed", help="3d volume map", default=0)
     parser.add_option("--tfile", type="string", dest="tfile", help="coalescence time file", default=None)
+    parser.add_option("-h", "--hubble", type = "double", dest="h", help="reduced hubble constant value", default=-1)
     (options, args)     = parser.parse_args()
 
     print(options)
@@ -551,7 +556,8 @@ def main():
                               injection          = injection,
                               catalog            = options.catalog,
                               output             = options.output,
-                              standard_cosmology = options.cosmology)
+                              standard_cosmology = options.cosmology,
+                              h                  = options.h)
 
     dpgmm.compute_dpgmm()
 
@@ -676,7 +682,8 @@ def main():
 
                 threshold = dpgmm.heights['0.9']
                 (k,) = np.where(dpgmm.ranked_probability>threshold)
-                np.savetxt(os.path.join(options.output,'galaxy_0.9.txt'),
+                path = os.path.join(options.output,'galaxy_0.9_%.3f.txt') %(dpgmm.h)
+                np.savetxt(path,
                            np.array([np.degrees(dpgmm.ranked_ra[k]),np.degrees(dpgmm.ranked_dec[k]),dpgmm.ranked_dl[k],dpgmm.ranked_z[k],dpgmm.ranked_B[k], dpgmm.ranked_dB[k], dpgmm.ranked_Babs[k], dpgmm.peculiarmotion[k],dpgmm.ranked_probability[k]]).T,
                            fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
                            header='ra\tdec\tDL\tz\tB\tB_err\tB_abs\tpec.mot.corr.\tlogposterior')
