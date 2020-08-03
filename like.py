@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 from optparse import OptionParser
+import configparser
 from scipy.special import logsumexp
 from functools import reduce
 from scipy.stats import norm
@@ -22,6 +23,7 @@ from displaypost import plot_post
 import math
 import ray
 from time import perf_counter
+from galaxies import *
 
 def weighted_quantile(values, quantiles, sample_weight=None,
                       values_sorted=False, old_style=False):
@@ -90,47 +92,54 @@ def calculatelikelihood(args):
 
 @ray.remote
 def computeloglikelihood(e, hi, mth, opts):
+    cmd = "VolumeReconstruction -i '"+opts['post']+"' -o '"+opts['out']+"' --bins=60,180,360 --dmax=600 --max-stick=16 --catalog '"+opts['cat']+"' --cosmology=0 --hubble="+str(hi)+" --plots=1"
+    temp = os.system(cmd)
     omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
-    logL = lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, mth, Ntot = e.n_tot, completeness_file = opts.out+'completeness_fraction_'+str(e.ID)+'.txt')
+    cat = read_galaxy_catalog({'RA':[0., 360.], 'DEC':[-90., 90.], 'z':[0., 4.]}, catalog_file = opts['data']+'galaxy_0.9_%.3f.txt', n_tot = None) %(hi)
+    logL = lk.logLikelihood_single_event(cat, e, omega, mth, Ntot = e.n_tot, completeness_file = opts['out']+'completeness_fraction_'+str(e.ID)+'.txt')
     omega.DestroyCosmologicalParameters()
     return logL
 
 usage=""" %prog (options)"""
 
 if __name__ == '__main__':
-    parser = OptionParser(usage)
-    parser.add_option('-d', '--data',        default=None, type='string', metavar='data', help='Galaxy data location')
-    parser.add_option('-o', '--out',         default=None, type='string', metavar='out', help='Directory for output')
-    parser.add_option('-c', '--event-class', default=None, type='string', metavar='event_class', help='Class of the event(s) [MBH, EMRI, sBH]')
-    parser.add_option('-e', '--event',       default=None, type='int', metavar='event', help='Event number')
-    parser.add_option('-m', '--model',       default='LambdaCDM', type='string', metavar='model', help='Cosmological model to assume for the analysis (default LambdaCDM). Supports LambdaCDM, CLambdaCDM, LambdaCDMDE, and DE.')
-    parser.add_option('-j', '--joint',       default=0, type='int', metavar='joint', help='Run a joint analysis for N events, randomly selected (EMRI only).')
-    parser.add_option('-z', '--zhorizon',    default=1000.0, type='float', metavar='zhorizon', help='Horizon redshift corresponding to the SNR threshold')
-    parser.add_option('--snr_threshold',     default=0.0, type='float', metavar='snr_threshold', help='SNR detection threshold')
-    parser.add_option('--em_selection',      default=0, type='int', metavar='em_selection', help='Use EM selection function')
-    parser.add_option('--reduced_catalog',   default=0, type='int', metavar='reduced_catalog', help='Select randomly only a fraction of the catalog')
-    parser.add_option('-t', '--threads',     default=None, type='int', metavar='threads', help='Number of threads (default = 1/core)')
-    parser.add_option('-s', '--seed',        default=0, type='int', metavar='seed', help='Random seed initialisation')
-    parser.add_option('--nlive',             default=1000, type='int', metavar='nlive', help='Number of live points')
-    parser.add_option('--poolsize',          default=100, type='int', metavar='poolsize', help='Poolsize for the samplers')
-    parser.add_option('--maxmcmc',           default=1000, type='int', metavar='maxmcmc', help='Maximum number of mcmc steps')
-    parser.add_option('--postprocess',       default=0, type='int', metavar='postprocess', help='Run only the postprocessing')
-    parser.add_option('-n', '--nevmax',      default=None, type='int', metavar='nevmax', help='Maximum number of considered events')
-    parser.add_option('-u', '--uncert',      default='0.1', type='float', metavar='uncert', help='Relative uncertainty on z of each galaxy (peculiar motion)')
-    parser.add_option('-a', '--hosts',       default=None, type='int', metavar='hosts', help='Total number of galaxies in considered volume')
-    parser.add_option('--EMcp',              default=0, type='int', metavar='EMcp', help='Electromagnetic counterpart')
-    (opts,args)=parser.parse_args()
+    # parser = OptionParser(usage)
+    # parser.add_option('-d', '--data',        default=None, type='string', metavar='data', help='Galaxy data location')
+    # parser.add_option('-o', '--out',         default=None, type='string', metavar='out', help='Directory for output')
+    # parser.add_option('-c', '--event-class', default=None, type='string', metavar='event_class', help='Class of the event(s) [MBH, EMRI, sBH]')
+    # parser.add_option('-e', '--event',       default=None, type='int', metavar='event', help='Event number')
+    # parser.add_option('-m', '--model',       default='LambdaCDM', type='string', metavar='model', help='Cosmological model to assume for the analysis (default LambdaCDM). Supports LambdaCDM, CLambdaCDM, LambdaCDMDE, and DE.')
+    # parser.add_option('-j', '--joint',       default=0, type='int', metavar='joint', help='Run a joint analysis for N events, randomly selected (EMRI only).')
+    # parser.add_option('-z', '--zhorizon',    default=1000.0, type='float', metavar='zhorizon', help='Horizon redshift corresponding to the SNR threshold')
+    # parser.add_option('--snr_threshold',     default=0.0, type='float', metavar='snr_threshold', help='SNR detection threshold')
+    # parser.add_option('--em_selection',      default=0, type='int', metavar='em_selection', help='Use EM selection function')
+    # parser.add_option('--reduced_catalog',   default=0, type='int', metavar='reduced_catalog', help='Select randomly only a fraction of the catalog')
+    # parser.add_option('-t', '--threads',     default=None, type='int', metavar='threads', help='Number of threads (default = 1/core)')
+    # parser.add_option('-s', '--seed',        default=0, type='int', metavar='seed', help='Random seed initialisation')
+    # parser.add_option('--nlive',             default=1000, type='int', metavar='nlive', help='Number of live points')
+    # parser.add_option('--poolsize',          default=100, type='int', metavar='poolsize', help='Poolsize for the samplers')
+    # parser.add_option('--maxmcmc',           default=1000, type='int', metavar='maxmcmc', help='Maximum number of mcmc steps')
+    # parser.add_option('--postprocess',       default=0, type='int', metavar='postprocess', help='Run only the postprocessing')
+    # parser.add_option('-n', '--nevmax',      default=None, type='int', metavar='nevmax', help='Maximum number of considered events')
+    # parser.add_option('-u', '--uncert',      default='0.1', type='float', metavar='uncert', help='Relative uncertainty on z of each galaxy (peculiar motion)')
+    # parser.add_option('-a', '--hosts',       default=None, type='int', metavar='hosts', help='Total number of galaxies in considered volume')
+    # parser.add_option('--EMcp',              default=0, type='int', metavar='EMcp', help='Electromagnetic counterpart')
+    # parser.add_option('--cat',               default=None, type='string', metavar='cat', help='galaxy catalog')
+    # (opts,args)=parser.parse_args()
 
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    opts = config['DEFAULT']
     ray.init()
 
     init_time = perf_counter()
 
-    events = readdata.read_event(opts.event_class, input_folder = opts.data, emcp = opts.EMcp, nevmax = opts.nevmax)
+    events = readdata.read_event(opts['event_class'], input_folder = opts['data'], emcp = int(opts['EMcp']), nevmax = opts['nevmax'])
 
-    if opts.out == None:
-        opts.out = opts.data + 'output/'
-        if not os.path.exists(opts.out):
-            os.mkdir(opts.out)
+    if opts['out'] == None:
+        opts['out'] = opts['data'] + 'output/'
+        if not os.path.exists(opts['out']):
+            os.mkdir(opts['out'])
 
     h  = np.linspace(0.4, 1, 40, endpoint=True)
     dh = (h.max()-h.min())/len(h)
@@ -147,8 +156,8 @@ if __name__ == '__main__':
         I = 0.
         likelihood_tasks = []
         evcounter += 1
-        completeness_file = opts.out+'completeness_fraction_'+str(e.ID)+'.txt'
-        f=open(opts.out+'completeness_fraction_'+str(e.ID)+'.txt', 'w')
+        completeness_file = opts['out']+'completeness_fraction_'+str(e.ID)+'.txt'
+        f=open(opts['out']+'completeness_fraction_'+str(e.ID)+'.txt', 'w')
         f.write('h Nem N M')
         f.close()
         for hi in h:
@@ -174,7 +183,7 @@ if __name__ == '__main__':
             I += li*dh
         likelihood = likelihood - np.log(I) - likelihood.max()
         lhs.append(likelihood)
-        np.savetxt(opts.out+'likelihood_'+str(e.ID)+'.txt', np.array([h, likelihood]).T, header = 'h\t\tlogL')
+        np.savetxt(opts['out']+'likelihood_'+str(e.ID)+'.txt', np.array([h, likelihood]).T, header = 'h\t\tlogL')
 
     joint = np.zeros(len(likelihood))
     for like in lhs_unnormed:
@@ -209,7 +218,7 @@ if __name__ == '__main__':
     ax2.set_xlabel('$H_0\ [km\\cdot s^{-1}\\cdot Mpc^{-1}]$')
     ax2.set_ylabel('$p(H_0)$')
     ax1.set_ylabel('$p(H_0)$')
-    fig.savefig(opts.out+'h_posterior.pdf', bbox_inches='tight')
+    fig.savefig(opts['out']+'h_posterior.pdf', bbox_inches='tight')
 
     fig2 = plt.figure()
     fig2.suptitle(title)
@@ -221,7 +230,7 @@ if __name__ == '__main__':
     #ax.set_xlim(55,80)
     ax.set_xlabel('$H_0\ [km\\cdot s^{-1}\\cdot Mpc^{-1}]$')
     ax.set_ylabel('$p(H_0)$')
-    fig2.savefig(opts.out+'h_posterior_tight.pdf', bbox_inches='tight')
+    fig2.savefig(opts['out']+'h_posterior_tight.pdf', bbox_inches='tight')
 
     end_time = perf_counter()
 
