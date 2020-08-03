@@ -416,12 +416,13 @@ def readGC(file,dpgmm,standard_cosmology=True, h = -1):
     for gal in cat:
         # Flag2 = 0: no distance/redshift measurement.
         if np.float(gal['z']) > 0.0:
-            if not(standard_cosmology) and not h == -1:
-                h       = np.random.uniform(0.3,1)
+            if not(standard_cosmology) and h == -1:
+                h_random       = np.random.uniform(0.3,1)
                 om      = np.random.uniform(0.0,1.0)
                 ol      = 1.0-om
-                omega   = lal.CreateCosmologicalParameters(h,om,ol,-1.0,0.0,0.0)
+                omega   = lal.CreateCosmologicalParameters(h_random,om,ol,-1.0,0.0,0.0)
 
+            print(omega.h)
             ra.append(np.float(gal['ra']))
             dec.append(np.float(gal['dec']))
             z.append(np.float(gal['z']))
