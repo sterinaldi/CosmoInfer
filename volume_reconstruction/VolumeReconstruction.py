@@ -406,7 +406,7 @@ def readGC(file,dpgmm,standard_cosmology=True, h = -1):
     if standard_cosmology:
         omega       = lal.CreateCosmologicalParameters(0.7, 0.3, 0.7, -1.0, 0.0, 0.0)
         zmin, zmax  = find_redshift_limits([0.69,0.71], [0.29,0.31], dpgmm.grid[0][0], dpgmm.grid[0][-1])
-    else if not h == -1:
+    elif not h == -1:
          omega       = lal.CreateCosmologicalParameters(h, 0.3, 0.7, -1.0, 0.0, 0.0)
          zmin, zmax  = find_redshift_limits([h-0.01,h+0.01], [0.29,0.31], dpgmm.grid[0][0], dpgmm.grid[0][-1])
     else:
