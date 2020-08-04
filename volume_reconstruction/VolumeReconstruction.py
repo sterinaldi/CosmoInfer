@@ -472,7 +472,7 @@ def parse_to_list(option, opt, value, parser):
 # start the program
 #-------------------
 
-def main():
+def VolRec():
     parser = op.OptionParser()
     parser.add_option("-i", "--input", type="string", dest="input", help="Input file")
     parser.add_option("--inj",type="string",dest="injfile",help="injection file",default=None)
@@ -613,7 +613,7 @@ def main():
         plt.xlabel(r"$\mathrm{Distance/Mpc}$")
         plt.ylabel(r"$\mathrm{probability}$ $\mathrm{density}$")
         plt.savefig(os.path.join(options.output,'distance_posterior.pdf'),bbox_inches='tight')
-    path = os.path.join(options.output,'confidence_levels_%.3f.txt') %(dpgmm.h)
+    path = os.path.join(options.output,'confidence_levels.txt')
     np.savetxt(path, np.array([CLs, volumes, areas, distances, ramin, ramax, decmin, decmax]).T, fmt='%.2f\t%f\t%f\t%f\t%f\t%f\t%f\t%f')
     if dpgmm.injection is not None: np.savetxt(os.path.join(options.output,'searched_quantities.txt'), np.array([searched_volume,searched_area,searched_distance]), fmt='%s\t%s\t%s')
 
@@ -786,4 +786,4 @@ def main():
     sys.stderr.write("\n")
 
 if __name__=='__main__':
-    main()
+    VolRec()
