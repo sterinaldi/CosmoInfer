@@ -472,7 +472,7 @@ def parse_to_list(option, opt, value, parser):
 # start the program
 #-------------------
 
-def VolRec():
+def main():
     parser = op.OptionParser()
     parser.add_option("-i", "--input", type="string", dest="input", help="Input file")
     parser.add_option("--inj",type="string",dest="injfile",help="injection file",default=None)
@@ -786,4 +786,4 @@ def VolRec():
     sys.stderr.write("\n")
 
 if __name__=='__main__':
-    VolRec()
+    main()
