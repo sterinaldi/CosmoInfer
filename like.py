@@ -86,17 +86,18 @@ def calculatelikelihood(args):
         omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
         logL = 0.
         #sys.stdout.write('Event %d of %d, h = %.3f, hmax = %.3f\n' % (evcounter, len(events), hi, h.max()))
-        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 18., avg_Ntot = e.n_tot, completeness_file = completeness_file)
+        logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, m_th, avg_Ntot = e.n_tot, completeness_file = completeness_file)
         omega.DestroyCosmologicalParameters()
         return logL
 
 @ray.remote
-def computeloglikelihood(e, hi, mth, opts):
+def computeloglikelihood(e, hi, opts):
     cmd = "VolumeReconstruction -i '"+opts['post']+"' -o '"+opts['out']+"' --bins=60,180,360 --dmax=600 --max-stick=16 --catalog '"+opts['cat']+"' --cosmology=0 --hubble="+str(hi)+" --plots=1"
     temp = os.system(cmd)
     omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
     cat = read_galaxy_catalog({'RA':[0., 360.], 'DEC':[-90., 90.], 'z':[0., 4.]}, catalog_file = opts['data']+'galaxy_0.9_%.3f.txt', n_tot = None) %(hi)
-    logL = lk.logLikelihood_single_event(cat, e, omega, mth, Ntot = e.n_tot, completeness_file = opts['out']+'completeness_fraction_'+str(e.ID)+'.txt')
+    m_th = float(opts['m_th'])
+    logL = lk.logLikelihood_single_event(cat, e, omega, m_th, Ntot = e.n_tot, completeness_file = opts['out']+'completeness_fraction_'+str(e.ID)+'.txt')
     omega.DestroyCosmologicalParameters()
     return logL
 
@@ -141,7 +142,7 @@ if __name__ == '__main__':
         if not os.path.exists(opts['out']):
             os.mkdir(opts['out'])
 
-    h  = np.linspace(0.4, 1, 40, endpoint=True)
+    h  = np.linspace(0.3, 1, 8, endpoint=True)
     dh = (h.max()-h.min())/len(h)
 
     evcounter    = 0
@@ -169,7 +170,7 @@ if __name__ == '__main__':
             # logL += lk.logLikelihood_single_event(e.potential_galaxy_hosts, e, omega, 18., Ntot = e.n_tot, completeness_file = opts.out+'completeness_fraction_'+str(e.ID)+'.txt')
             # omega.DestroyCosmologicalParameters()
             # likelihood.append(logL)
-            likelihood_tasks.append(computeloglikelihood.remote(e, hi, 18., opts))
+            likelihood_tasks.append(computeloglikelihood.remote(e, hi, opts))
         # args = [(hi, e, completeness_file) for hi in h]
         # results = pool.map(calculatelikelihood, args)
         # futures = [calculatelikelihood.remote((hi, e, completeness_file)) for hi in h]
