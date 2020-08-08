@@ -249,7 +249,6 @@ class DPGMMSkyPosterior(object):
         adLevels        = np.ravel([0.9])
         args            = [(self.log_volume_map_sorted,self.log_volume_map_cum,level) for level in adLevels]
         adHeights       = self.pool.map(FindHeights,args)
-        self.heights    = {str(lev):hei for lev,hei in zip(adLevels,adHeights)}
 
 
         for height in adHeights:
