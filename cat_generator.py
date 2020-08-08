@@ -105,8 +105,8 @@ if __name__ == '__main__':
         os.mkdir(output)
     numberdensity = 0.66
 
-    LD_max = 600
-    LD_min = 300
+    LD_max = 2000
+    LD_min = 1
 
     z_min = RedshiftCalculation(LD_min, omega)
     z_max = RedshiftCalculation(LD_max, omega)
@@ -254,18 +254,18 @@ if __name__ == '__main__':
     N_em, bins, other = plt.hist(z_em, bins = 100)# int(np.sqrt(len(z_em))))
     N_det, bins, other = plt.hist(z_det, bins = bins)
 
-    reds = []
-    for i in range(len(bins)-1):
-        reds.append((bins[i]+bins[i+1])/2.)
-    reds = np.array(reds)
-    gamma = np.array(N_det)/np.array(N_em)
-
-    np.savetxt(output+'completeness_z.txt', np.array([reds, gamma]).T, header = 'z\tgamma')
-
-    fig_completeness = plt.figure()
-    ax_compl = fig_completeness.add_subplot(111)
-    ax_compl.plot(reds,gamma)
-    ax_compl.set_xlabel('$z$')
-    ax_compl.set_ylabel('$\\gamma(z)$')
-    ax_compl.set_xlim(0,0.04)
-    fig_completeness.savefig(output+'completeness_z.pdf', bbox_inches='tight')
+    # reds = []
+    # for i in range(len(bins)-1):
+    #     reds.append((bins[i]+bins[i+1])/2.)
+    # reds = np.array(reds)
+    # gamma = np.array(N_det)/np.array(N_em)
+    #
+    # np.savetxt(output+'completeness_z.txt', np.array([reds, gamma]).T, header = 'z\tgamma')
+    #
+    # fig_completeness = plt.figure()
+    # ax_compl = fig_completeness.add_subplot(111)
+    # ax_compl.plot(reds,gamma)
+    # ax_compl.set_xlabel('$z$')
+    # ax_compl.set_ylabel('$\\gamma(z)$')
+    # ax_compl.set_xlim(0,0.04)
+    # fig_completeness.savefig(output+'completeness_z.pdf', bbox_inches='tight')
