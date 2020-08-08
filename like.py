@@ -8,7 +8,6 @@ from functools import reduce
 from scipy.stats import norm
 import unittest
 import lal
-# import cpnest.model
 import sys
 import os
 import readdata
@@ -24,6 +23,8 @@ import math
 import ray
 from time import perf_counter
 from galaxies import *
+from VolumeReconstruction import VolRec # Warning: non è installato
+
 
 def weighted_quantile(values, quantiles, sample_weight=None,
                       values_sorted=False, old_style=False):
@@ -92,10 +93,11 @@ def calculatelikelihood(args):
 
 @ray.remote
 def computeloglikelihood(e, hi, opts):
-    cmd = "VolumeReconstruction -i '"+opts['post']+"' -o '"+opts['out']+"' --bins=60,180,360 --dmax=600 --max-stick=16 --catalog '"+opts['cat']+"' --cosmology=0 --hubble="+str(hi)+" --plots=1"
-    temp = os.system(cmd)
+
+    VolRec(input = opts['post'], output = opts['data'], bins = [60,180,360], dmax = 600, event_id = e.ID, catalog = opts['cat'], cosmology = 0, hubble = hi)
     omega = cs.CosmologicalParameters(hi, 0.3,0.7,-1,0)
-    cat = read_galaxy_catalog({'RA':[0., 360.], 'DEC':[-90., 90.], 'z':[0., 4.]}, catalog_file = opts['data']+'galaxy_0.9_%.3f.txt', n_tot = None) %(hi)
+    cat_file = opts['data']+'galaxy_0.9_%.3f.txt' %(hi)
+    cat = read_galaxy_catalog({'RA':[0., 360.], 'DEC':[-90., 90.], 'z':[0., 4.]}, catalog_file = cat_file, n_tot = None)
     m_th = float(opts['m_th'])
     logL = lk.logLikelihood_single_event(cat, e, omega, m_th, Ntot = e.n_tot, completeness_file = opts['out']+'completeness_fraction_'+str(e.ID)+'.txt')
     omega.DestroyCosmologicalParameters()
@@ -142,7 +144,7 @@ if __name__ == '__main__':
         if not os.path.exists(opts['out']):
             os.mkdir(opts['out'])
 
-    h  = np.linspace(0.3, 1, 8, endpoint=True)
+    h  = np.linspace(0.6, 0.9, 8, endpoint=True)
     dh = (h.max()-h.min())/len(h)
 
     evcounter    = 0
@@ -203,12 +205,12 @@ if __name__ == '__main__':
     styles      = ['dotted', 'dashed', 'solid', 'dashed','dotted']
 
     hmax = 100*h[np.where(joint == joint.max())]
-    results = ' %.0f^{+%.0f}_{-%.0f}' % (hmax, percentiles[3]-hmax, hmax-percentiles[1])
+    #results = ' %.0f^{+%.0f}_{-%.0f}' % (hmax, percentiles[3]-hmax, hmax-percentiles[1])
 
-    percentiles[2] = hmax
-    title = '$H_0 = '+results+'\ km\\cdot s^{-1}\\cdot Mpc^{-1}$'
+    #percentiles[2] = hmax
+    #title = '$H_0 = '+results+'\ km\\cdot s^{-1}\\cdot Mpc^{-1}$'
     fig = plt.figure()
-    fig.suptitle(title)
+    #fig.suptitle(title)
     ax1 = fig.add_subplot(211)
     ax2 = fig.add_subplot(212)
     for l in lhs:
@@ -222,12 +224,12 @@ if __name__ == '__main__':
     fig.savefig(opts['out']+'h_posterior.pdf', bbox_inches='tight')
 
     fig2 = plt.figure()
-    fig2.suptitle(title)
+    #fig2.suptitle(title)
     ax = fig2.add_subplot(111)
     ax.plot(h*100, np.exp(joint)/100.)
     # ax.axvline(70, color = 'r')
-    for value, thick, style in  zip(percentiles, thickness, styles):
-        ax.axvline(value, ls = style, linewidth = thick, color = 'darkblue')
+    #for value, thick, style in  zip(percentiles, thickness, styles):
+    #    ax.axvline(value, ls = style, linewidth = thick, color = 'darkblue')
     #ax.set_xlim(55,80)
     ax.set_xlabel('$H_0\ [km\\cdot s^{-1}\\cdot Mpc^{-1}]$')
     ax.set_ylabel('$p(H_0)$')

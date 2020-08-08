@@ -299,7 +299,7 @@ def read_CBC_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.6675, n
     ID = 0.
     for evfold in event_folders:
         ID +=1
-        catalog_file  = input_folder+evfold+'/galaxy_0.9.txt'
+        catalog_file  = input_folder+evfold+'/galaxy_0.9_-1.000.txt'
         event_file    = input_folder+evfold+'/dpgmm_density.p'
         levels_file   = input_folder+evfold+'/confidence_levels.txt'
         distance_file = input_folder+evfold+'/distance_map.txt'
