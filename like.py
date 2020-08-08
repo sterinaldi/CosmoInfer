@@ -177,6 +177,7 @@ if __name__ == '__main__':
         # results = pool.map(calculatelikelihood, args)
         # futures = [calculatelikelihood.remote((hi, e, completeness_file)) for hi in h]
         # results = ray.get(futures)
+        #
 
         likelihood = np.array(ray.get(likelihood_tasks))
         lhs_unnormed.append(likelihood)
