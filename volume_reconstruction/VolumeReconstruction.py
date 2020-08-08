@@ -240,6 +240,42 @@ class DPGMMSkyPosterior(object):
         del self.log_volume_map_cum
         return self.volume_confidence,None
 
+    def DifferentialVolume(self):
+        # create a normalized cumulative distribution
+        self.log_volume_map_sorted  = np.sort(self.log_volume_map.flatten())[::-1]
+        self.log_volume_map_cum     = fast_log_cumulative(self.log_volume_map_sorted)
+
+        # find the indeces  corresponding to the given CLs
+        adLevels        = np.ravel([0.9])
+        args            = [(self.log_volume_map_sorted,self.log_volume_map_cum,level) for level in adLevels]
+        adHeights       = self.pool.map(FindHeights,args)
+        self.heights    = {str(lev):hei for lev,hei in zip(adLevels,adHeights)}
+
+
+        for height in adHeights:
+            surfaces = {}
+            distance_index = []
+            diffvol        = []
+            diffdist       = []
+
+            (index_d, index_dec, index_ra,) = np.where(self.log_volume_map>=height)
+            for d, dec, ra in zip(index_d, index_dec, index_ra):
+                if not np.isin(str(d), list(surfaces.keys())):
+                    surfaces[str(d)] = []
+                    distance_index.append(d)
+                surfaces[str(d)].append(dec)
+
+            for d in distance_index:
+                diffvol.append(np.sum([self.grid[0][d]**2. *np.cos(self.grid[1][i_dec]) * self.dRA * self.dDEC for i_dec in surfaces[str(d)]]))
+                diffdist.append(self.grid[0][d])
+
+        self.differential_volume    = np.array(diffvol)
+        self.differential_distances = np.array(diffdist)
+
+        del self.log_volume_map_sorted
+        del self.log_volume_map_cum
+        return self.differential_volume,None
+
     def ConfidenceArea(self, adLevels):
 
         # create a normalized cumulative distribution
@@ -272,6 +308,8 @@ class DPGMMSkyPosterior(object):
         del self.log_skymap_sorted
         del self.log_skymap_cum
         return self.area_confidence,None
+
+
 
     def ConfidenceCoordinates(self, adLevels):
         # create a normalized cumulative distribution
@@ -468,6 +506,204 @@ def parse_to_list(option, opt, value, parser):
     """
     setattr(parser.values, option.dest, value.split(','))
 
+
+#-------------------
+# Main for scripts
+#-------------------
+
+
+def VolRec(input, output, bins, dmax, event_id, nthreads = None, maxstick = 16, catalog = None, plots = 0, ranks = 1000, nsamps = None, cosmology = 1, threed = 0, tfile = None, hubble = -1, injfile = None):
+
+    np.random.seed(1)
+    CLs                 = [0.05,0.1,0.2,0.25,0.3,0.4,0.5,0.6,0.68,0.7,0.75,0.8,0.9,0.95] # add options?
+    input_file          = input
+    injFile             = injfile
+    eventID             = event_id
+    out_dir             = output
+    bins                = np.array(bins,dtype=np.int)
+    h                   = float(hubble)
+    os.system('mkdir -p %s'%(out_dir))
+
+    if injFile is not None:
+        injections          = SimInspiralUtils.ReadSimInspiralFromFiles([injFile])
+        injection           = injections[0] # pass event id from options
+        (ra_inj, dec_inj)   = injection.get_ra_dec()
+        tc                  = injection.get_time_geocent()
+        GPSTime             = lal.LIGOTimeGPS(str(tc))
+        gmst_rad_inj        = lal.GreenwichMeanSiderealTime(GPSTime)
+        dist_inj            = injection.distance
+        print('injection values -->',dist_inj,ra_inj,dec_inj,tc)
+    else:
+        injection           = None
+
+    samples = np.genfromtxt(input_file,names=True)
+
+    # we are going to normalise the distance between 0 and 1
+    if 'time' in samples.dtype.names:
+        time_name = 'time'
+    elif 'tc' in samples.dtype.names:
+        time_name = 'tc'
+    elif 't0' in samples.dtype.names:
+        time_name = 't0'
+
+    if "dist" in samples.dtype.names:
+        samples = np.column_stack((samples["dist"],samples["dec"],samples["ra"],samples[time_name]))
+    elif "distance" in samples.dtype.names:
+        samples = np.column_stack((samples["distance"],samples["dec"],samples["ra"],samples[time_name]))
+    elif "logdistance" in samples.dtype.names:
+        samples = np.column_stack((np.exp(samples["logdistance"]),samples["dec"],samples["ra"],samples[time_name]))
+
+
+
+    samps       = []
+    gmst_rad    = []
+
+    if nsamps is not None:
+        idx = np.random.choice(range(0,len(samples[:,0])),size=nsamps)
+    else:
+        idx = range(0,len(samples[:,0]))
+
+    for k in range(len(samples[idx,0])):
+        GPSTime = lal.LIGOTimeGPS(samples[k,3])
+        gmst_rad.append(lal.GreenwichMeanSiderealTime(GPSTime))
+        samps.append((samples[k,0],samples[k,1],samples[k,2]))
+
+    dpgmm = DPGMMSkyPosterior(samps,
+                              dimension          = 3,
+                              max_sticks         = max_stick,
+                              bins               = bins,
+                              dist_max           = dmax,
+                              nthreads           = nthreads,
+                              injection          = injection,
+                              catalog            = catalog,
+                              output             = output,
+                              standard_cosmology = cosmology,
+                              h                  = hubble)
+
+    dpgmm.compute_dpgmm()
+
+    if dpgmm.catalog is not None:
+
+        dpgmm.rank_galaxies()
+
+        np.savetxt(os.path.join(output,'galaxy_ranks.txt'),
+                   np.array([np.degrees(dpgmm.ranked_ra[:ranks]),
+                             np.degrees(dpgmm.ranked_dec[:ranks]),
+                             dpgmm.ranked_dl[:ranks],
+                             dpgmm.ranked_z[:ranks],
+                             dpgmm.ranked_B[:ranks],
+                             dpgmm.ranked_dB[:ranks],
+                             dpgmm.ranked_Babs[:ranks],
+                             dpgmm.peculiarmotion[:ranks],
+                             dpgmm.ranked_probability[:ranks]]).T,
+                   fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
+                   header='ra\tdec\tDL\tz\tB\tB_err\tB_abs\tpec.mot.corr.\tlogposterior')
+
+    dpgmm.evaluate_volume_map()
+    volumes, searched_volume          = dpgmm.ConfidenceVolume(CLs)
+    dpgmm.evaluate_sky_map()
+    areas, searched_area              = dpgmm.ConfidenceArea(CLs)
+    ramin, ramax, decmin, decmax      = dpgmm.ConfidenceCoordinates(CLs)
+    dpgmm.evaluate_distance_map()
+    distances, searched_distance      = dpgmm.ConfidenceDistance(CLs)
+
+    if dpgmm.catalog is not None:
+        number_of_galaxies = np.zeros(len(CLs),dtype=np.int)
+
+        for i,CL in enumerate(CLs):
+            threshold = dpgmm.heights[str(CL)]
+            (k,) = np.where(dpgmm.ranked_probability>threshold)
+            number_of_galaxies[i] = len(k)
+
+        np.savetxt(os.path.join(output,'galaxy_in_confidence_regions.txt'), np.array([CLs,number_of_galaxies]).T, fmt='%.2f\t%d')
+
+        if dpgmm.injection is not None:
+            threshold = dpgmm.injection_volume_height
+            (k,) = np.where(dpgmm.ranked_probability>threshold)
+            number_of_galaxies = len(k)
+            with open(os.path.join(output,'searched_galaxies.txt'),'w') as f:
+                f.write('%.5f\t%d\n'%(dpgmm.injection_volume_confidence,number_of_galaxies))
+                f.close()
+
+    if plots:
+        import matplotlib.pyplot as plt
+        plt.plot(dpgmm.grid[0],dpgmm.distance_map,color="k",linewidth=2.0)
+        plt.hist(samples[:,0],bins=dpgmm.grid[0],density=True,facecolor="0.9")
+        if injFile!=None: plt.axvline(dist_inj,color="k",linestyle="dashed")
+        plt.xlabel(r"$\mathrm{Distance/Mpc}$")
+        plt.ylabel(r"$\mathrm{probability}$ $\mathrm{density}$")
+        plt.savefig(os.path.join(output,'distance_posterior.pdf'),bbox_inches='tight')
+    path = os.path.join(output,'confidence_levels.txt')
+    np.savetxt(path, np.array([CLs, volumes, areas, distances, ramin, ramax, decmin, decmax]).T, fmt='%.2f\t%f\t%f\t%f\t%f\t%f\t%f\t%f')
+    if dpgmm.injection is not None: np.savetxt(os.path.join(output,'searched_quantities.txt'), np.array([searched_volume,searched_area,searched_distance]), fmt='%s\t%s\t%s')
+
+    np.savetxt(os.path.join(output,'distance_map.txt'), np.array([dpgmm.grid[0], dpgmm.unnormed_distance_map]).T, fmt='%f\t%f', header='dist\tpost')
+
+    # dist_inj,ra_inj,dec_inj,tc
+    if injFile is not None:
+        gmst_deg = np.mod(np.degrees(gmst_rad_inj), 360)
+        lon_cen = lon_inj = np.degrees(ra_inj) - gmst_deg
+        lat_cen = lat_inj = np.degrees(dec_inj)
+    else:
+        gmst_deg = np.mod(np.degrees(np.array(gmst_rad)), 360)
+        lon_cen = np.degrees(np.mean(samples[idx,2])) - np.mean(gmst_deg)
+        lat_cen = np.degrees(np.mean(samples[idx,1]))
+
+    lon_samp = np.degrees(samples[idx,2]) - gmst_deg
+    lat_samp = np.degrees(samples[idx,1])
+
+    ra_map,dec_map = dpgmm.grid[2],dpgmm.grid[1]
+    lon_map = np.degrees(ra_map) - np.mean(gmst_deg)
+    lat_map = np.degrees(dec_map)
+
+    if plots:
+        sys.stderr.write("producing sky maps \n")
+        try:
+            plt.figure()
+            plt.plot(np.arange(1,dpgmm.max_sticks+1),dpgmm.scores,'.')
+            plt.xlabel(r"$\mathrm{number}$ $\mathrm{of}$ $\mathrm{components}$")
+            plt.ylabel(r"$\mathrm{marginal}$ $\mathrm{likelihood}$")
+            plt.savefig(os.path.join(out_dir, 'scores.pdf'))
+        except:
+            pass
+
+    if catalog:
+        out_dir = os.path.join(output, 'galaxies_scatter')
+        os.system("mkdir -p %s"%out_dir)
+        sys.stderr.write("producing 3 dimensional maps\n")
+        # Create a sphere
+        x = dpgmm.ranked_dl*np.cos(dpgmm.ranked_dec)*np.cos(dpgmm.ranked_ra)
+        y = dpgmm.ranked_dl*np.cos(dpgmm.ranked_dec)*np.sin(dpgmm.ranked_ra)
+        z = dpgmm.ranked_dl*np.sin(dpgmm.ranked_dec)
+
+        threshold = dpgmm.heights['0.9']
+        (k,) = np.where(dpgmm.ranked_probability>threshold)
+        path = os.path.join(output,'galaxy_0.9_%.3f.txt') %(dpgmm.h)
+        np.savetxt(path,
+                   np.array([np.degrees(dpgmm.ranked_ra[k]),np.degrees(dpgmm.ranked_dec[k]),dpgmm.ranked_dl[k],dpgmm.ranked_z[k],dpgmm.ranked_B[k], dpgmm.ranked_dB[k], dpgmm.ranked_Babs[k], dpgmm.peculiarmotion[k],dpgmm.ranked_probability[k]]).T,
+                   fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
+                   header='ra\tdec\tDL\tz\tB\tB_err\tB_abs\tpec.mot.corr.\tlogposterior')
+
+        imax = dpgmm.ranked_probability.argmax()
+        threshold = dpgmm.heights['0.5']
+        (k,) = np.where(dpgmm.ranked_probability>threshold)
+        MIN = dpgmm.grid[0][0]
+        MAX = dpgmm.grid[0][-1]
+        sys.stderr.write("%d galaxies above threshold, plotting\n"%(len(k)))
+        np.savetxt(os.path.join(output,'galaxy_0.5.txt'),
+                   np.array([np.degrees(dpgmm.ranked_ra[k]),np.degrees(dpgmm.ranked_dec[k]),dpgmm.ranked_dl[k],dpgmm.ranked_z[k],dpgmm.ranked_B[k], dpgmm.ranked_dB[k], dpgmm.ranked_Babs[k], dpgmm.peculiarmotion[k],dpgmm.ranked_probability[k]]).T,
+                   fmt='%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t%.9f\t',
+                   header='ra\tdec\tDL\tz\tB\tB_err\tB_abs\tpec.mot.corr.\tlogposterior')
+
+    if threed:
+        # produce a volume plot
+        from volume_reconstruction.plotting.plot import volume_rendering
+        volume_rendering()
+
+
+    sys.stderr.write("\n")
+
+
 #-------------------
 # start the program
 #-------------------
@@ -586,6 +822,7 @@ def main():
     ramin, ramax, decmin, decmax      = dpgmm.ConfidenceCoordinates(CLs)
     dpgmm.evaluate_distance_map()
     distances, searched_distance      = dpgmm.ConfidenceDistance(CLs)
+    surfaces, searched_surface        = dpgmm.DifferentialArea_90()
 
     if dpgmm.catalog is not None:
         number_of_galaxies = np.zeros(len(CLs),dtype=np.int)
@@ -608,7 +845,7 @@ def main():
     if options.plots:
         import matplotlib.pyplot as plt
         plt.plot(dpgmm.grid[0],dpgmm.distance_map,color="k",linewidth=2.0)
-        plt.hist(samples[:,0],bins=dpgmm.grid[0],normed=True,facecolor="0.9")
+        plt.hist(samples[:,0],bins=dpgmm.grid[0],density=True,facecolor="0.9")
         if injFile!=None: plt.axvline(dist_inj,color="k",linestyle="dashed")
         plt.xlabel(r"$\mathrm{Distance/Mpc}$")
         plt.ylabel(r"$\mathrm{probability}$ $\mathrm{density}$")
@@ -618,6 +855,7 @@ def main():
     if dpgmm.injection is not None: np.savetxt(os.path.join(options.output,'searched_quantities.txt'), np.array([searched_volume,searched_area,searched_distance]), fmt='%s\t%s\t%s')
 
     np.savetxt(os.path.join(options.output,'distance_map.txt'), np.array([dpgmm.grid[0], dpgmm.unnormed_distance_map]).T, fmt='%f\t%f', header='dist\tpost')
+    np.savetxt(os.path.join(options.output,'diff_volume.txt'), np.array([dpgmm.differential_distances, dpgmm.differential_volume]).T, fmt='%f\t%f', header='dist\tvolume')
 
     # dist_inj,ra_inj,dec_inj,tc
     if injFile is not None:
@@ -711,7 +949,7 @@ def main():
                 zs = MAX*np.cos(v)
                 ax.plot_wireframe(xs, ys, zs, color="0.95", alpha=0.5, lw=0.5)
                 ax.scatter([0.0],[0.0],[0.0],c='k',s=200,marker=r'$\bigoplus$',edgecolors='none')
-                S = ax.scatter(x[k],y[k],z[k],c=dpgmm.ranked_probability[k],s=1000*(dpgmm.ranked_dl[k]/options.dmax)**2,marker='o',edgecolors='none', cmap = plt.get_cmap("magma_r"))#,norm=matplotlib.colors.LogNorm()
+                S = ax.scatter(x[k],y[k],z[k],c=dpgmm.ranked_probability[k],s=1000*(dpgmm.ranked_dl[k]/options.dmax)**2,marker='o',edgecolors='None', cmap = plt.get_cmap("viridis"))#,norm=matplotlib.colors.LogNorm()
 #                ax.scatter(x[imax],y[imax],z[imax],c=dpgmm.ranked_probability[imax],s=128,marker='+')#,norm=matplotlib.colors.LogNorm()
                 C = fig.colorbar(S)
                 C.set_label(r"$\mathrm{probability}$ $\mathrm{density}$")
@@ -753,29 +991,29 @@ def main():
                 for ii in range(0,360,1):
                     sys.stderr.write("producing frame %03d\r"%ii)
                     ax.view_init(elev=10., azim=ii)
-                    plt.savefig(os.path.join(out_dir, 'galaxies_3d_scatter_%03d.png'%ii),dpi=300)
+                    #plt.savefig(os.path.join(out_dir, 'galaxies_3d_scatter_%03d.png'%ii),dpi=300)
                 sys.stderr.write("\n")
 
                 # make an animation
-                os.system("ffmpeg -f image2 -r 10 -i %s -vcodec mpeg4 -y %s"%(os.path.join(out_dir, 'galaxies_3d_scatter_%03d.png'),os.path.join(out_dir, 'movie.mp4')))
+                # os.system("ffmpeg -f image2 -r 10 -i %s -vcodec mpeg4 -y %s"%(os.path.join(out_dir, 'galaxies_3d_scatter_%03d.png'),os.path.join(out_dir, 'movie.mp4')))
 
-                plt.figure()
-                lon_gals = np.degrees(dpgmm.ranked_ra[k][::-1]) - np.mean(gmst_deg)
-                lat_gals = np.degrees(dpgmm.ranked_dec[k][::-1])
-                dl_gals = dpgmm.ranked_dl[k][::-1]
-                logProbability = dpgmm.ranked_probability[k][::-1]
-                m = Basemap(projection='moll', lon_0=round(lon_cen, 2), lat_0=0, resolution='c')
-                m.drawcoastlines(linewidth=0.5, color='0.5')
-                m.drawparallels(np.arange(-90,90,30), labels=[1,0,0,0], labelstyle='+/-', linewidth=0.1, dashes=[1,1], alpha=0.5)
-                m.drawmeridians(np.arange(0,360,60), linewidth=0.1, dashes=[1,1], alpha=0.5)
-                m.drawmapboundary(linewidth=0.5, fill_color='white')
-
-                S = plt.scatter(*m(lon_gals, lat_gals), s=10, c=dl_gals, lw=0, marker='o')
-
-                if injFile is not None: plt.scatter(*m(lon_inj, lat_inj), color='k', s=500, marker='+')
-                cbar = m.colorbar(S,location='bottom',pad="5%")
-                cbar.set_label(r"$\log(\mathrm{Probability})$")
-                plt.savefig(os.path.join(out_dir, 'galaxies_marg_sky.pdf'))
+                # plt.figure()
+                # lon_gals = np.degrees(dpgmm.ranked_ra[k][::-1]) - np.mean(gmst_deg)
+                # lat_gals = np.degrees(dpgmm.ranked_dec[k][::-1])
+                # dl_gals = dpgmm.ranked_dl[k][::-1]
+                # logProbability = dpgmm.ranked_probability[k][::-1]
+                # m = Basemap(projection='moll', lon_0=round(lon_cen, 2), lat_0=0, resolution='c')
+                # m.drawcoastlines(linewidth=0.5, color='0.5')
+                # m.drawparallels(np.arange(-90,90,30), labels=[1,0,0,0], labelstyle='+/-', linewidth=0.1, dashes=[1,1], alpha=0.5)
+                # m.drawmeridians(np.arange(0,360,60), linewidth=0.1, dashes=[1,1], alpha=0.5)
+                # m.drawmapboundary(linewidth=0.5, fill_color='white')
+                #
+                # S = plt.scatter(*m(lon_gals, lat_gals), s=10, c=dl_gals, lw=0, marker='o')
+                #
+                # if injFile is not None: plt.scatter(*m(lon_inj, lat_inj), color='k', s=500, marker='+')
+                # cbar = m.colorbar(S,location='bottom',pad="5%")
+                # cbar.set_label(r"$\log(\mathrm{Probability})$")
+                # plt.savefig(os.path.join(out_dir, 'galaxies_marg_sky.pdf'))
 
     if options.threed:
         # produce a volume plot
