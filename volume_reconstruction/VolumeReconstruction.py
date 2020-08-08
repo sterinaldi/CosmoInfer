@@ -822,7 +822,7 @@ def main():
     ramin, ramax, decmin, decmax      = dpgmm.ConfidenceCoordinates(CLs)
     dpgmm.evaluate_distance_map()
     distances, searched_distance      = dpgmm.ConfidenceDistance(CLs)
-    surfaces, searched_surface        = dpgmm.DifferentialArea_90()
+    surfaces, searched_surface        = dpgmm.DifferentialVolume()
 
     if dpgmm.catalog is not None:
         number_of_galaxies = np.zeros(len(CLs),dtype=np.int)
