@@ -115,7 +115,7 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
     for Ntot in Ntot_array:
         avg_N_em     = int(Integrate_Schechter(M_max, M_min, M_min-3, schechter,M_cutoff)*Ntot)
         pNem         = poisson(avg_N_em).pmf
-        avg_N_bright = ComputeAverageBright(M_min, M_max, zmin, zmax, m_th, M_cutoff, Ntot, omega, schechter)
+        avg_N_bright = ComputeAverageBright(event.dvdz, M_min, M_max, zmin, zmax, m_th, M_cutoff, Ntot, omega, schechter)
         pNbright     = poisson(avg_N_bright).pmf
         Nem_array    = np.arange(int(avg_N_em-3*np.sqrt(avg_N_em)), int(avg_N_em+3*np.sqrt(avg_N_em)))
         I_Nem = -INFINITY
@@ -191,22 +191,26 @@ cdef inline double appM(double z, double M, CosmologicalParameters omega):
 cdef inline double gaussian(double x, double x0, double sigma) nogil:
     return exp(-(x-x0)**2/(2*sigma**2))/(sigma*sqrt(2*M_PI))
 
-cdef int ComputeAverageBright(double M_min, double M_max, double z_min, double z_max, double mth, double M_cutoff, int Ntot, CosmologicalParameters omega, object Schechter):
+cdef int ComputeAverageBright(object interpolant, double M_min, double M_max, double z_min, double z_max, double mth, double M_cutoff, int Ntot, CosmologicalParameters omega, object Schechter):
 
-    M_array = np.linspace(M_min, M_max, 200)
+    M_array = np.linpace(M_min, M_max, 200)
     dM = M_array[2]-M_array[1]
     z_array = np.linspace(z_min,z_max,100)
     dz = z_array[2]-z_array[1]
 
+    norm = 0.
+    for z in z_array:
+        norm += interpolant(lal.LuminosityDistance(omega,z))*dLumDist(z,omega)*dz
+
+
     I_z = 0.
     for z in z_array:
-        Mth = absM(z, mth, omega)
+        Mth = absM(mth, z, omega)
         I_M = 0.
         for M in M_array:
-            if M < Mth and M < M_cutoff:
+            if M < Mth:
                 I_M += Schechter(M)*dM
-        I_z += I_M*omega.ComovingVolumeElement(z)*dz/(omega.ComovingVolume(z_max)-omega.ComovingVolume(z_min))
-
+        I_z += lal.ComovingVolumeElement(z,omega)*interpolant(lal.LuminosityDistance(omega,z))*dLumDist(z,omega)*dz*I_M/(norm*(lal.ComovingVolume(omega,z_max)-lal.ComovingVolume(omega,z_min)))
     return int(Ntot*I_z)
 
 
