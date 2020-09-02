@@ -140,7 +140,7 @@ class Event_CBC(object):
                  density,
                  levels_file,
                  distance_file,
-                 dvdz_file,
+                 area_file,
                  EMcp         = 0,
                  n_tot        = None,
                  gal_density  = 0.6675): # galaxies/Mpc^3 (from Conselice et al., 2016)
@@ -168,8 +168,8 @@ class Event_CBC(object):
         marginalized_post = np.genfromtxt(distance_file, names = True)
         self.interpolant = interp1d(marginalized_post['dist'], marginalized_post['post'], 'linear', fill_value = 0., bounds_error=False)
 
-        volumes   = np.genfromtxt(dvdz_file, names = True)
-        self.dvdz = interp1d(volumes['dist'], volumes['volume'], 'linear', fill_value = 0., bounds_error = False)
+        areas   = np.genfromtxt(area_file, names = True)
+        self.area = interp1d(areas['dist'], areas['area'], 'linear', fill_value = 0., bounds_error = False)
 
 
 
@@ -308,8 +308,8 @@ def read_CBC_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.6675, n
         event_file    = input_folder+evfold+'/dpgmm_density.p'
         levels_file   = input_folder+evfold+'/confidence_levels.txt'
         distance_file = input_folder+evfold+'/distance_map.txt'
-        dvdz_file     = input_folder+evfold+'/diff_volume.txt'
-        events.append(Event_CBC(ID, catalog_file, event_file, levels_file, distance_file, dvdz_file, EMcp = emcp, gal_density=gal_density))
+        area_file     = input_folder+evfold+'/diff_area.txt'
+        events.append(Event_CBC(ID, catalog_file, event_file, levels_file, distance_file, area_file, EMcp = emcp, gal_density=gal_density))
     return np.array(events)
 
 def read_CBC_EM_event(input_folder, emcp = 0, n_tot = None, gal_density = 0.6675, nevmax = None):
