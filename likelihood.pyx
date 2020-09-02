@@ -19,8 +19,8 @@ import ray
 
 
 
-def logLikelihood_single_event(list hosts, object event, CosmologicalParameters omega, double m_th, int Ntot, int EMcp = 0, str completeness_file = None):
-    return _logLikelihood_single_event(hosts, event, omega, m_th, Ntot, EMcp = EMcp, completeness_file = completeness_file)
+def logLikelihood_single_event(list hosts, object event, CosmologicalParameters omega, double m_th, int EMcp = 0, str completeness_file = None):
+    return _logLikelihood_single_event(hosts, event, omega, m_th, EMcp = EMcp, completeness_file = completeness_file)
 
 
 cdef inline double log_add(double x, double y): return x+log(1.0+exp(y-x)) if x >= y else y+log(1.0+exp(x-y))
@@ -30,7 +30,7 @@ cdef inline double linear_density(double x, double a, double b): return a+log(x)
 @cython.wraparound(False)
 @cython.nonecheck(False)
 @cython.cdivision(True)
-cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalParameters omega, double m_th, int avg_Ntot, int EMcp = 0, str completeness_file = None):
+cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalParameters omega, double m_th, int EMcp = 0, str completeness_file = None):
 
     cdef unsigned int i
     cdef unsigned int N = len(hosts)
@@ -48,7 +48,7 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
     cdef double M_min, M_max, M_cutoff = -15.
     cdef object schechter
     cdef double alpha, Mstar
-    cdef int avg_N_bright, avg_N_em, N_em, Ntot
+    cdef int avg_N_bright, avg_N_em, avg_N_tot, N_em, Ntot
     cdef int N_noem
     cdef object file_comp
 
@@ -105,17 +105,17 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
     M_max = -6.
     M_min = -23.
 
+    avg_N_tot = ComputeAverageTotal(event.area, zmin, zmax, omega, 0.66)
 
     pNtot = poisson(avg_Ntot).pmf
-
     schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, h = omega.h)
-    Ntot_array = np.arange(int(avg_Ntot-3*np.sqrt(avg_Ntot)), int(avg_Ntot+3*np.sqrt(avg_Ntot)))
+    Ntot_array = np.arange(int(avg_N_tot-3*np.sqrt(avg_N_tot)), int(avg_N_tot+3*np.sqrt(avg_N_tot)))
 
     I_Ntot = -INFINITY
     for Ntot in Ntot_array:
         avg_N_em     = int(Integrate_Schechter(M_max, M_min, M_min-3, schechter,M_cutoff)*Ntot)
         pNem         = poisson(avg_N_em).pmf
-        avg_N_bright = ComputeAverageBright(event.dvdz, M_min, M_max, zmin, zmax, m_th, M_cutoff, Ntot, omega, schechter)
+        avg_N_bright = ComputeAverageBright(event.area, M_min, M_max, zmin, zmax, m_th, M_cutoff, Ntot, omega, schechter)
         pNbright     = poisson(avg_N_bright).pmf
         Nem_array    = np.arange(int(avg_N_em-3*np.sqrt(avg_N_em)), int(avg_N_em+3*np.sqrt(avg_N_em)))
         I_Nem = -INFINITY
@@ -191,26 +191,39 @@ cdef inline double appM(double z, double M, CosmologicalParameters omega):
 cdef inline double gaussian(double x, double x0, double sigma) nogil:
     return exp(-(x-x0)**2/(2*sigma**2))/(sigma*sqrt(2*M_PI))
 
-cdef int ComputeAverageBright(object interpolant, double M_min, double M_max, double z_min, double z_max, double mth, double M_cutoff, int Ntot, CosmologicalParameters omega, object Schechter):
+cdef int ComputeAverageTotal(object area, double z_min, double z_max, CosmologicalParameters omega, double density):
 
-    M_array = np.linpace(M_min, M_max, 200)
+    z_array = np.linspace(z_min, z_max, 1000)
+    dz = z_array[2]-z_array[1]
+    I_z = 0.
+
+    for z in z_array:
+        I_z += density*omega.ComovingVolumeElement(z)*(area(omega.LuminosityDistance(z))/(4*np.pi))*dz
+
+    return int(I_z)
+
+
+cdef int ComputeAverageBright(object area, double M_min, double M_max, double z_min, double z_max, double mth, double M_cutoff, int Ntot, CosmologicalParameters omega, object Schechter):
+
+    M_array = np.linspace(M_min, M_max, 1000)
     dM = M_array[2]-M_array[1]
-    z_array = np.linspace(z_min,z_max,100)
+    z_array = np.linspace(z_min, z_max,1000)
     dz = z_array[2]-z_array[1]
 
     norm = 0.
     for z in z_array:
-        norm += interpolant(lal.LuminosityDistance(omega,z))*dLumDist(z,omega)*dz
+        norm += omega.ComovingVolumeElement(z)*(area(omega.LuminosityDistance(z))/(4*np.pi))*dz
 
 
     I_z = 0.
     for z in z_array:
-        Mth = absM(mth, z, omega)
+        Mth = absM(z, mth, omega)
         I_M = 0.
         for M in M_array:
-            if M < Mth:
+            if M < Mth and M < M_cutoff:
                 I_M += Schechter(M)*dM
-        I_z += lal.ComovingVolumeElement(z,omega)*interpolant(lal.LuminosityDistance(omega,z))*dLumDist(z,omega)*dz*I_M/(norm*(lal.ComovingVolume(omega,z_max)-lal.ComovingVolume(omega,z_min)))
+        I_z += omega.ComovingVolumeElement(z)*(area(omega.LuminosityDistance(z))/(4*np.pi))*dz*I_M/norm
+
     return int(Ntot*I_z)
 
 

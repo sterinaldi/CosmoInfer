@@ -99,7 +99,7 @@ def computeloglikelihood(e, hi, opts):
     cat_file = opts['data']+'galaxy_0.9_%.3f.txt' %(hi)
     cat = read_galaxy_catalog({'RA':[0., 360.], 'DEC':[-90., 90.], 'z':[0., 4.]}, catalog_file = cat_file, n_tot = None)
     m_th = float(opts['m_th'])
-    logL = lk.logLikelihood_single_event(cat, e, omega, m_th, Ntot = e.n_tot, completeness_file = opts['out']+'completeness_fraction_'+str(e.ID)+'.txt')
+    logL = lk.logLikelihood_single_event(cat, e, omega, m_th, completeness_file = opts['out']+'completeness_fraction_'+str(e.ID)+'.txt')
     omega.DestroyCosmologicalParameters()
     return logL
 
@@ -144,7 +144,7 @@ if __name__ == '__main__':
         if not os.path.exists(opts['out']):
             os.mkdir(opts['out'])
 
-    h  = np.linspace(0.6, 0.9, 8, endpoint=True)
+    h  = np.linspace(0.3, 1, 8, endpoint=True)
     dh = (h.max()-h.min())/len(h)
 
     evcounter    = 0
