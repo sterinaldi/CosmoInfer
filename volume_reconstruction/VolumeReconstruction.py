@@ -255,6 +255,7 @@ class DPGMMSkyPosterior(object):
             surfaces = {}
             distance_index = []
             diffvol        = []
+            diffarea       = []
             diffdist       = []
 
             (index_d, index_dec, index_ra,) = np.where(self.log_volume_map>=height)
@@ -266,9 +267,11 @@ class DPGMMSkyPosterior(object):
 
             for d in distance_index:
                 diffvol.append(np.sum([self.grid[0][d]**2. *np.cos(self.grid[1][i_dec]) * self.dRA * self.dDEC for i_dec in surfaces[str(d)]]))
+                diffarea.append(np.sum([np.cos(self.grid[1][i_dec]) * self.dRA * self.dDEC for i_dec in surfaces[str(d)]]))
                 diffdist.append(self.grid[0][d])
 
         self.differential_volume    = np.array(diffvol)
+        self.differential_area      = np.array(diffarea)
         self.differential_distances = np.array(diffdist)
 
         del self.log_volume_map_sorted
@@ -855,6 +858,8 @@ def main():
 
     np.savetxt(os.path.join(options.output,'distance_map.txt'), np.array([dpgmm.grid[0], dpgmm.unnormed_distance_map]).T, fmt='%f\t%f', header='dist\tpost')
     np.savetxt(os.path.join(options.output,'diff_volume.txt'), np.array([dpgmm.differential_distances, dpgmm.differential_volume]).T, fmt='%f\t%f', header='dist\tvolume')
+    np.savetxt(os.path.join(options.output,'diff_area.txt'), np.array([dpgmm.differential_distances, dpgmm.differential_area]).T, fmt='%f\t%f', header='dist\tarea')
+
 
     # dist_inj,ra_inj,dec_inj,tc
     if injFile is not None:
