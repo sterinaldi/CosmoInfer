@@ -61,7 +61,7 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
     cdef double dark_term = 0.
     cdef object pNtot, pNem, pNbright
 
-    cdef Galaxy mockgalaxy = Galaxy(-1, 0,0,0,False, weight = 1./avg_Ntot)
+    cdef Galaxy mockgalaxy = Galaxy(-1, 0,0,0,False, weight = 1.)
     cdef np.ndarray[double, ndim=1, mode="c"] p_with_post = np.zeros(N, dtype=np.float64)
     cdef double[::1] p_with_post_view = p_with_post
     cdef np.ndarray[double, ndim=1, mode="c"] p_no_post = np.zeros(N, dtype=np.float64)
@@ -107,7 +107,7 @@ cdef double _logLikelihood_single_event(list hosts, object event, CosmologicalPa
 
     avg_N_tot = ComputeAverageTotal(event.area, zmin, zmax, omega, 0.66)
 
-    pNtot = poisson(avg_Ntot).pmf
+    pNtot = poisson(avg_N_tot).pmf
     schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, h = omega.h)
     Ntot_array = np.arange(int(avg_N_tot-3*np.sqrt(avg_N_tot)), int(avg_N_tot+3*np.sqrt(avg_N_tot)))
 
