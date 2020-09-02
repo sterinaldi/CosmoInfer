@@ -57,8 +57,8 @@ def RedshiftCalculation(LD, omega, zinit=0.3, limit = 0.0001):
 def generate_galaxy(ipar,Schechter, omega, i, ID,ra,dec,z,z_cosmo,DL,absB,dB,appB,host):
     # omega = lal.CreateCosmologicalParameters(0.697, 0.306, 0.694, -1, 0, 0)
     ID_try = i
-    ra_try = rd.uniform(5.12, 5.18)
-    dec_try = np.arccos(rd.uniform(np.cos(-0.12), np.cos(-0.22)))#np.arccos()
+    ra_try = rd.uniform(5.22, 5.06)
+    dec_try = np.arcsin(rd.uniform(np.sin(-0.05), np.sin(-0.27)))#np.arccos()
     while 1:
         z_temp = rd.uniform(ipar['z_min'], ipar['z_max'])
         if rd.random()*ipar['dCoVolMax'] < lal.ComovingVolumeElement(z_temp,omega):
@@ -76,7 +76,7 @@ def generate_galaxy(ipar,Schechter, omega, i, ID,ra,dec,z,z_cosmo,DL,absB,dB,app
     if appM(z_cosmo_try, absB_try, omega) < ipar['m_th']:
         ID.append(ID_try)
         ra.append(np.rad2deg(ra_try))
-        dec.append(np.rad2deg(-dec_try))
+        dec.append(np.rad2deg(dec_try))
         z.append(z_try)
         z_cosmo.append(z_cosmo_try)
         DL.append(DL_try)
@@ -97,27 +97,28 @@ if __name__ == '__main__':
     M_mean = -20
     sigma  = 0.5
 
-    m_th = 18.
+    m_th = 99.
 
     Schechter, alpha, Mstar = SchechterMagFunction(M_min, M_max, omega.h)
-    output = '/Users/stefanorinaldi/Documents/Sim/catalog_29/'
+    output = '/Users/stefanorinaldi/Documents/Sim/catalog_30/'
     if not os.path.exists(output):
         os.mkdir(output)
     numberdensity = 0.66
 
-    LD_max = 2000
-    LD_min = 1
+    LD_max = 650
+    LD_min = 250
 
     z_min = RedshiftCalculation(LD_min, omega)
     z_max = RedshiftCalculation(LD_max, omega)
 
     dCoVolMax = lal.ComovingVolumeElement(z_max,omega)
     pM_max    = Schechter(M_max)
-    CoVol = (lal.ComovingVolume(omega, z_max) - lal.ComovingVolume(omega, z_min))*((5.18-5.12)*(0.22-0.12)/(4*np.pi))
+    CoVol = (lal.ComovingVolume(omega, z_max) - lal.ComovingVolume(omega, z_min))*((5.22-5.06)*(-np.sin(-0.27)+np.sin(-0.05))/(4*np.pi))
     print('CoVol=', CoVol)
     ev_density = n_ev/CoVol
     np.savetxt(output+'evdensity.txt', np.array([ev_density]).T, header = 'evdensity')
-    N_tot = poisson.rvs(int(CoVol*numberdensity), 1)
+    # N_tot = poisson.rvs(int(CoVol*numberdensity), 1)
+    N_tot = int(CoVol*numberdensity)
 
     ipar = {
             'z_min': z_min,
@@ -214,7 +215,7 @@ if __name__ == '__main__':
         ratio = float(n_ev)/float(N_tot)
         app_pM.append((1-ratio)*Schechter(Mi)+ratio*gaussian(Mi, M_mean, sigma))
 
-    ax_z_cosmo.hist(z_cosmo, bins = int(np.sqrt(len(z_cosmo))), density = True, color='lightblue', label = '$z_{cosmo}$')
+    ax_z_cosmo.hist(z_cosmo, bins = int(np.sqrt(len(z_cosmo))), density = True, color='lightblue', label = '$a_{cosmo}$')
     ax_z_cosmo.plot(app_z, app_CoVol, color = 'red', linewidth = 0.5, label = '$\\propto dV_{cov}/dz$')
     ax_z_cosmo.set_xlabel('$z_{cosmo}$')
     ax_z_cosmo.set_ylabel('$p(z_{cosmo})$')
@@ -237,7 +238,7 @@ if __name__ == '__main__':
 
     if n_ev > 0:
         ax_M_hosts.hist(absB_h, bins = int(np.sqrt(len(absB_h))), density = True, color='lightblue', label = '$M$')
-        #ax_M_hosts.plot(app_M_hosts, gaussian(app_M_hosts, M_mean, sigma), color = 'red', linewidth = 0.5, label = '$f(M)$')
+        ax_M_hosts.plot(app_M_hosts, gaussian(app_M_hosts, M_mean, sigma), color = 'red', linewidth = 0.5, label = '$f(M)$')
         ax_M_hosts.set_xlabel('$M\ (B\ band, hosts)$')
         ax_M_hosts.set_ylabel('$p(M)$')
         ax_M_hosts.legend(loc=0)
